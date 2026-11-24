@@ -48,7 +48,7 @@ class Probe:
 
 
 def build_probes(env: dict[str, str]) -> list[Probe]:
-    today = date.today()
+    today = datetime.now(tz=UTC).date()
     d30 = today - timedelta(days=30)
     y2 = today - timedelta(days=730)
 
@@ -62,7 +62,13 @@ def build_probes(env: dict[str, str]) -> list[Probe]:
     fh_base = "https://finnhub.io/api/v1"
 
     return [
-        Probe("finnhub_quote_VOO", f"{fh_base}/quote", {"symbol": "VOO", "token": fh}, {}, "FINNHUB_API_KEY"),
+        Probe(
+            "finnhub_quote_VOO",
+            f"{fh_base}/quote",
+            {"symbol": "VOO", "token": fh},
+            {},
+            "FINNHUB_API_KEY",
+        ),
         Probe(
             "finnhub_candle_VOO",
             f"{fh_base}/stock/candle",
@@ -77,18 +83,33 @@ def build_probes(env: dict[str, str]) -> list[Probe]:
             {},
             "FINNHUB_API_KEY",
         ),
-        Probe("finnhub_dividend2_KO", f"{fh_base}/stock/dividend2", {"symbol": "KO", "token": fh}, {}, "FINNHUB_API_KEY"),
+        Probe(
+            "finnhub_dividend2_KO",
+            f"{fh_base}/stock/dividend2",
+            {"symbol": "KO", "token": fh},
+            {},
+            "FINNHUB_API_KEY",
+        ),
         Probe(
             "finnhub_earnings_cal",
             f"{fh_base}/calendar/earnings",
-            {"from": today.isoformat(), "to": (today + timedelta(days=90)).isoformat(), "symbol": "MSFT", "token": fh},
+            {
+                "from": today.isoformat(),
+                "to": (today + timedelta(days=90)).isoformat(),
+                "symbol": "MSFT",
+                "token": fh,
+            },
             {},
             "FINNHUB_API_KEY",
         ),
         Probe(
             "finnhub_economic_cal",
             f"{fh_base}/calendar/economic",
-            {"from": today.isoformat(), "to": (today + timedelta(days=30)).isoformat(), "token": fh},
+            {
+                "from": today.isoformat(),
+                "to": (today + timedelta(days=30)).isoformat(),
+                "token": fh,
+            },
             {},
             "FINNHUB_API_KEY",
         ),
@@ -171,7 +192,9 @@ async def run(env: dict[str, str]) -> int:
             except ValueError:
                 pretty = body
             (OUT / f"{probe.name}.json").write_text(pretty, encoding="utf-8")
-            rows.append((probe.name, verdict(resp.status_code, body), body[:100].replace("\n", " ")))
+            rows.append(
+                (probe.name, verdict(resp.status_code, body), body[:100].replace("\n", " "))
+            )
             # Alpha Vantage free tier throttles bursts; be gentle with everyone.
             await asyncio.sleep(1.5)
 
