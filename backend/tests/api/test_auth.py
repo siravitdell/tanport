@@ -112,3 +112,39 @@ async def test_forged_cookie_is_rejected(client: AsyncClient) -> None:
 async def test_protected_routes_require_login(client: AsyncClient, method: str, path: str) -> None:
     resp = await client.request(method, path, json={})
     assert resp.status_code == 401
+
+
+async def test_login_is_throttled_per_email(client: AsyncClient) -> None:
+    await client.post("/api/auth/register", json=_register())
+    wrong = {"email": "bob@example.com", "password": "wrong password!"}
+    for _ in range(10):
+        assert (await client.post("/api/auth/login", json=wrong)).status_code == 401
+    blocked = await client.post(
+        "/api/auth/login", json={"email": "bob@example.com", "password": PASSWORD}
+    )
+    assert blocked.status_code == 429
+    assert int(blocked.headers["retry-after"]) > 0
+    # another account from the same IP is unaffected
+    other = await client.post("/api/auth/login", json={"email": "x@example.com", "password": "p"})
+    assert other.status_code == 401
+
+
+async def test_successful_login_resets_email_counter(client: AsyncClient) -> None:
+    await client.post("/api/auth/register", json=_register())
+    wrong = {"email": "bob@example.com", "password": "wrong password!"}
+    right = {"email": "bob@example.com", "password": PASSWORD}
+    for _ in range(9):
+        await client.post("/api/auth/login", json=wrong)
+    assert (await client.post("/api/auth/login", json=right)).status_code == 200
+    for _ in range(9):
+        assert (await client.post("/api/auth/login", json=wrong)).status_code == 401
+
+
+async def test_invite_code_guessing_is_throttled(client: AsyncClient) -> None:
+    for i in range(10):
+        resp = await client.post(
+            "/api/auth/register", json=_register(email=f"u{i}@example.com", invite_code="guess")
+        )
+        assert resp.status_code == 403
+    blocked = await client.post("/api/auth/register", json=_register(email="z@example.com"))
+    assert blocked.status_code == 429

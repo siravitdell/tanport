@@ -7,9 +7,10 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_session
+from app.api.deps import get_redis, get_session
 from app.config import Settings, get_settings
 from app.main import create_app
 
@@ -26,13 +27,14 @@ def test_config() -> Settings:
 
 
 @pytest.fixture
-def app(session: AsyncSession, test_config: Settings) -> FastAPI:
+def app(session: AsyncSession, redis: Redis, test_config: Settings) -> FastAPI:
     application = create_app()
 
     async def _session() -> AsyncIterator[AsyncSession]:
         yield session
 
     application.dependency_overrides[get_session] = _session
+    application.dependency_overrides[get_redis] = lambda: redis
     application.dependency_overrides[get_settings] = lambda: test_config
     return application
 

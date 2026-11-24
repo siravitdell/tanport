@@ -13,10 +13,12 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from redis.asyncio import Redis
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.config import get_settings
+from app.redis_client import make_redis
 from app.store.db import make_engine
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -54,3 +56,18 @@ async def session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
         finally:
             await db.close()
             await trans.rollback()
+
+
+@pytest.fixture
+async def redis() -> AsyncIterator[Redis]:
+    """Dedicated Redis DB index (TEST_REDIS_URL, default /15), emptied around each test."""
+    config = get_settings()
+    if config.test_redis_url == config.redis_url:
+        pytest.fail("TEST_REDIS_URL must differ from REDIS_URL: tests flush that database")
+    client = make_redis(config.test_redis_url)
+    await client.flushdb()
+    try:
+        yield client
+    finally:
+        await client.flushdb()
+        await client.aclose()

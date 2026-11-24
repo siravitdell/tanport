@@ -1,4 +1,4 @@
-"""FastAPI dependencies: DB session, config, current user."""
+"""FastAPI dependencies: DB session, Redis, config, current user."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings, get_settings
@@ -22,7 +23,13 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         yield session
 
 
+def get_redis(request: Request) -> Redis:
+    redis: Redis = request.app.state.redis
+    return redis
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+RedisDep = Annotated[Redis, Depends(get_redis)]
 ConfigDep = Annotated[Settings, Depends(get_settings)]
 
 

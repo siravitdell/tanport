@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import hmac
+import math
 import re
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from redis.asyncio import Redis
 
-from app.api.deps import SESSION_COOKIE, ConfigDep, CurrentUser, SessionDep
+from app.api.deps import SESSION_COOKIE, ConfigDep, CurrentUser, RedisDep, SessionDep
 from app.config import Settings
+from app.ratelimit import RateLimiter
 from app.security import dummy_hash, hash_password_async, verify_password_async
 from app.store import users as repo
 
@@ -18,6 +21,27 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 INVALID_LOGIN = "invalid email or password"
+
+# Brute-force protection (password guessing, invite-code guessing).
+LOGIN_PER_EMAIL = (10, 15 * 60)  # attempts, window seconds
+LOGIN_PER_IP = (50, 15 * 60)
+REGISTER_PER_IP = (10, 60 * 60)
+
+
+def _client_ip(request: Request) -> str:
+    # Direct connections only. Behind a reverse proxy, configure uvicorn --proxy-headers.
+    return request.client.host if request.client else "unknown"
+
+
+async def _throttle(redis: Redis, name: str, rule: tuple[int, int], subject: str) -> None:
+    limit, window = rule
+    decision = await RateLimiter(redis, name, limit, window).try_acquire(subject)
+    if not decision.allowed:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "too many attempts, try again later",
+            headers={"Retry-After": str(math.ceil(decision.retry_after_s))},
+        )
 
 
 def _email(value: str) -> str:
@@ -71,11 +95,17 @@ def _set_session_cookie(response: Response, token: str, config: Settings) -> Non
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
-    body: RegisterIn, response: Response, session: SessionDep, config: ConfigDep
+    body: RegisterIn,
+    request: Request,
+    response: Response,
+    session: SessionDep,
+    redis: RedisDep,
+    config: ConfigDep,
 ) -> UserOut:
     expected = config.invite_code.get_secret_value()
     if not expected:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "registration is disabled")
+    await _throttle(redis, "register:ip", REGISTER_PER_IP, _client_ip(request))
     if not hmac.compare_digest(body.invite_code.encode(), expected.encode()):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "invalid invite code")
 
@@ -94,13 +124,23 @@ async def register(
 
 @router.post("/login")
 async def login(
-    body: LoginIn, response: Response, session: SessionDep, config: ConfigDep
+    body: LoginIn,
+    request: Request,
+    response: Response,
+    session: SessionDep,
+    redis: RedisDep,
+    config: ConfigDep,
 ) -> UserOut:
+    await _throttle(redis, "login:ip", LOGIN_PER_IP, _client_ip(request))
+    await _throttle(redis, "login:email", LOGIN_PER_EMAIL, body.email)
+
     user = await repo.get_user_by_email(session, body.email)
     # Always run scrypt so response time doesn't reveal whether the email exists.
     ok = await verify_password_async(body.password, user.password_hash if user else dummy_hash())
     if user is None or not ok or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, INVALID_LOGIN)
+    # A successful login clears the per-email counter (the per-IP one keeps counting).
+    await RateLimiter(redis, "login:email", *LOGIN_PER_EMAIL).reset(body.email)
     token = await repo.create_session(session, user.id, timedelta(days=config.session_ttl_days))
     await session.commit()
     _set_session_cookie(response, token, config)
