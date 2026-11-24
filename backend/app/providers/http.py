@@ -25,6 +25,15 @@ log = structlog.get_logger()
 Sleep = Callable[[float], Awaitable[None]]
 
 
+def _body_snippet(resp: httpx.Response, secrets: list[str], limit: int = 200) -> str:
+    """Start of the response body for error messages, with anything we sent masked out."""
+    text = resp.text[:limit].replace("\n", " ")
+    for value in secrets:
+        if len(value) >= 6:
+            text = text.replace(value, "***")
+    return text
+
+
 def _retry_after(resp: httpx.Response) -> float | None:
     value = resp.headers.get("retry-after")
     try:
@@ -104,7 +113,10 @@ class ProviderHttp:
                 )
                 continue
             if status >= 400:
-                raise ProviderResponseError(self.provider, f"HTTP {status} on {path}")
+                sent = [*(params or {}).values(), *(headers or {}).values()]
+                raise ProviderResponseError(
+                    self.provider, f"HTTP {status} on {path}: {_body_snippet(resp, sent)}"
+                )
             try:
                 return resp.json()
             except ValueError:

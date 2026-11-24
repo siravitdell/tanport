@@ -116,3 +116,14 @@ async def test_local_limiter_blocks_before_calling(redis: Redis, sleep: SleepRec
     assert route.call_count == 1
     assert info.value.retry_after_s is not None
     assert info.value.retry_after_s > 3000
+
+
+@respx.mock
+async def test_client_error_includes_body_with_sent_values_masked(http: ProviderHttp) -> None:
+    respx.get(URL).respond(400, json={"message": f"Exceed limit period. token={SECRET} is fine"})
+    with pytest.raises(ProviderResponseError) as info:
+        await http.get_json(URL, params={"token": SECRET})
+    message = str(info.value)
+    assert "Exceed limit period" in message
+    assert SECRET not in message
+    assert "***" in message

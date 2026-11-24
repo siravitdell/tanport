@@ -8,6 +8,7 @@ that is rolled back, so tests never see each other's data.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.config import get_settings
 from app.redis_client import make_redis
-from app.store.db import make_engine
+from app.store.db import SessionFactory, make_engine
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
@@ -71,3 +72,14 @@ async def redis() -> AsyncIterator[Redis]:
     finally:
         await client.flushdb()
         await client.aclose()
+
+
+@pytest.fixture
+def session_factory(session: AsyncSession) -> SessionFactory:
+    """Lets job code `async with factory() as s:` while staying in the test's transaction."""
+
+    @asynccontextmanager
+    async def factory() -> AsyncIterator[AsyncSession]:
+        yield session
+
+    return factory

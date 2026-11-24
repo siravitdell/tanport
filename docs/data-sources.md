@@ -56,5 +56,7 @@ Trimmed real responses live in `backend/tests/fixtures/<provider>/`.
 - Portal: https://portal.api.bot.or.th/ — product "Exchange Rates", plan 200 calls/hour.
 - `GET https://gateway.api.bot.or.th/Stat-ReferenceRate/v2/DAILY_REF_RATE/?start_period=YYYY-MM-DD&end_period=YYYY-MM-DD`
 - Header `Authorization: <token>` (raw token, no `Bearer` prefix — works as-is).
+- **Max 31 days per request** — longer ranges get HTTP 400
+  `{"moreInformation":[{"message":"Exceed limit period. Limit period is 31 days"}]}`.
 - `result.data.data_detail[] = {"period": "YYYY-MM-DD", "rate": "33.9440000"}` (rate is a string), newest first.
   Only Thai business days.
