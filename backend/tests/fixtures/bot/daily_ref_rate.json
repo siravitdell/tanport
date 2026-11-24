@@ -1,0 +1,112 @@
+{
+  "result": {
+    "timestamp": "2026-11-24 22:50:20",
+    "api": "Daily Weighted-average Interbank Exchange Rate - THB / USD",
+    "data": {
+      "data_header": {
+        "report_name_eng": "Rates of Exchange of Commercial Banks in Bangkok Metropolis (2002-present)",
+        "report_name_th": "อัตราแลกเปลี่ยนเฉลี่ยของธนาคารพาณิชย์ในกรุงเทพมหานคร (2545-ปัจจุบัน)",
+        "report_uoq_name_eng": "(Unit: Baht / 1 Unit of Foreign Currency)",
+        "report_uoq_name_th": "(หน่วย: บาท ต่อ 1 หน่วยเงินตราต่างประเทศ)",
+        "report_source_of_data": [
+          {
+            "source_of_data_eng": "Bank of Thailand",
+            "source_of_data_th": "ธนาคารแห่งประเทศไทย"
+          }
+        ],
+        "report_remark": [],
+        "last_updated": "2026-11-24"
+      },
+      "data_detail": [
+        {
+          "period": "2026-11-24",
+          "rate": "33.9440000"
+        },
+        {
+          "period": "2026-11-23",
+          "rate": "33.9930000"
+        },
+        {
+          "period": "2026-11-20",
+          "rate": "33.9530000"
+        },
+        {
+          "period": "2026-11-19",
+          "rate": "33.9820000"
+        },
+        {
+          "period": "2026-11-18",
+          "rate": "33.8870000"
+        },
+        {
+          "period": "2026-11-17",
+          "rate": "33.8310000"
+        },
+        {
+          "period": "2026-11-16",
+          "rate": "33.8640000"
+        },
+        {
+          "period": "2026-11-13",
+          "rate": "33.8590000"
+        },
+        {
+          "period": "2026-11-12",
+          "rate": "33.7760000"
+        },
+        {
+          "period": "2026-11-11",
+          "rate": "33.6100000"
+        },
+        {
+          "period": "2026-11-10",
+          "rate": "33.3920000"
+        },
+        {
+          "period": "2026-11-09",
+          "rate": "33.5270000"
+        },
+        {
+          "period": "2026-11-06",
+          "rate": "33.5030000"
+        },
+        {
+          "period": "2026-11-05",
+          "rate": "33.4310000"
+        },
+        {
+          "period": "2026-11-04",
+          "rate": "33.7070000"
+        },
+        {
+          "period": "2026-11-03",
+          "rate": "33.7290000"
+        },
+        {
+          "period": "2026-11-02",
+          "rate": "33.7850000"
+        },
+        {
+          "period": "2026-10-30",
+          "rate": "33.7010000"
+        },
+        {
+          "period": "2026-10-29",
+          "rate": "33.7480000"
+        },
+        {
+          "period": "2026-10-28",
+          "rate": "33.8150000"
+        },
+        {
+          "period": "2026-10-27",
+          "rate": "33.7450000"
+        },
+        {
+          "period": "2026-10-26",
+          "rate": "33.7920000"
+        }
+      ]
+    }
+  }
+}

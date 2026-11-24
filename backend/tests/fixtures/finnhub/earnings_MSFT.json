@@ -1,0 +1,15 @@
+{
+  "earningsCalendar": [
+    {
+      "symbol": "MSFT",
+      "date": "2027-01-26",
+      "hour": "",
+      "quarter": 2,
+      "year": 2027,
+      "epsEstimate": 4.9626,
+      "epsActual": null,
+      "revenueEstimate": 98626664160,
+      "revenueActual": null
+    }
+  ]
+}

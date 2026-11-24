@@ -1,0 +1,61 @@
+{
+  "symbol": "VOO",
+  "data": [
+    {
+      "ex_dividend_date": "2026-09-28",
+      "declaration_date": "2026-01-27",
+      "record_date": "2026-09-28",
+      "payment_date": "2026-09-30",
+      "amount": "1.8226"
+    },
+    {
+      "ex_dividend_date": "2026-06-26",
+      "declaration_date": "2026-01-27",
+      "record_date": "2026-06-26",
+      "payment_date": "2026-06-30",
+      "amount": "1.9622"
+    },
+    {
+      "ex_dividend_date": "2026-03-27",
+      "declaration_date": "2026-01-07",
+      "record_date": "2026-03-27",
+      "payment_date": "2026-03-31",
+      "amount": "1.8724"
+    },
+    {
+      "ex_dividend_date": "2025-12-22",
+      "declaration_date": "2025-04-03",
+      "record_date": "2025-12-22",
+      "payment_date": "2025-12-24",
+      "amount": "1.771"
+    },
+    {
+      "ex_dividend_date": "2025-09-29",
+      "declaration_date": "2025-01-16",
+      "record_date": "2025-09-29",
+      "payment_date": "2025-10-01",
+      "amount": "1.74"
+    },
+    {
+      "ex_dividend_date": "2025-06-30",
+      "declaration_date": "2025-01-16",
+      "record_date": "2025-06-30",
+      "payment_date": "2025-07-02",
+      "amount": "1.7447"
+    },
+    {
+      "ex_dividend_date": "2025-03-27",
+      "declaration_date": "2025-01-16",
+      "record_date": "2025-03-27",
+      "payment_date": "2025-03-31",
+      "amount": "1.8121"
+    },
+    {
+      "ex_dividend_date": "2024-12-23",
+      "declaration_date": "2024-03-05",
+      "record_date": "2024-12-23",
+      "payment_date": "2024-12-26",
+      "amount": "1.7385"
+    }
+  ]
+}
