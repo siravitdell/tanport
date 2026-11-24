@@ -1,0 +1,30 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# probe raw output (may contain unredacted data)
+backend/scripts/probe_output/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
