@@ -8,23 +8,32 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from app.api import health
+from app.api import auth, health, holdings, settings
 from app.config import get_settings
 from app.logs import configure_logging
+from app.store.db import make_engine, make_session_factory
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    settings = get_settings()
-    configure_logging(settings.log_level)
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    config = get_settings()
+    configure_logging(config.log_level)
+    engine = make_engine(config.database_url)
+    app.state.session_factory = make_session_factory(engine)
     structlog.get_logger().info("api.startup")
-    yield
-    structlog.get_logger().info("api.shutdown")
+    try:
+        yield
+    finally:
+        await engine.dispose()
+        structlog.get_logger().info("api.shutdown")
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="TanPort API", version="0.1.0", lifespan=lifespan)
     app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(holdings.router)
+    app.include_router(settings.router)
     return app
 
 

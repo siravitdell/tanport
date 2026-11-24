@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     line_channel_access_token: SecretStr = SecretStr("")
     line_user_id: str = ""
 
+    # --- auth ---
+    # Registration requires this code; empty = registration disabled.
+    invite_code: SecretStr = SecretStr("")
+    session_ttl_days: int = Field(default=30, ge=1, le=365)
+    # True in production (HTTPS). False lets the cookie work on http://localhost.
+    cookie_secure: bool = False
+
     log_level: str = "INFO"
 
 

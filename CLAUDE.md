@@ -1,6 +1,6 @@
 # TanPort — Portfolio Dividend & Event Calendar
 
-A personal web app that shows, on one calendar, everything happening to the stocks I hold:
+A small invite-only multi-user web app (a few users: family/friends) that shows, on one calendar, everything happening to the stocks each user holds:
 price moves, dividends (in THB, after US withholding tax), earnings, important news, and macro events.
 
 UI reference: screenshots of the approved mockup live in `/docs/mockups/` — match them.
@@ -73,10 +73,20 @@ docker-compose.yml
 - Respect rate limits with a Redis-backed limiter shared by all jobs.
 - API keys come from env vars only. Never commit secrets; keep `.env` in `.gitignore` and maintain `.env.example`.
 
+## Users & auth
+- Multi-user, **invite-only**: `POST /api/auth/register` requires `INVITE_CODE` from env (empty = registration disabled).
+- Passwords: stdlib `hashlib.scrypt` (no extra crypto dependency). Sessions: random token in an HttpOnly, SameSite=Lax cookie (`tanport_session`); only its SHA-256 is stored.
+- **Per-user data:** `holdings`, `user_settings`, `portfolio_daily`. Every query on them is scoped by `user_id`; another user's id must return 404, never the row.
+- **Shared market data:** `prices`, `events`, `news`, `fx_rates` — fetched once per distinct ticker across all users. Never store user-specific amounts (e.g. net THB) in shared tables; compute them per user at read time.
+- Free-tier quotas are shared by all users (Alpha Vantage 25/day ≈ 25 distinct dividend tickers in total). If exceeded, spread syncs over several days and show data age in the UI.
+
 ## Data model (starting point)
-- `holdings(id, ticker, shares numeric, avg_cost_usd numeric, created_at, updated_at)`
+- `users(id, email unique lower-case, password_hash, display_name, is_active, created_at, updated_at)`
+- `user_sessions(token_hash PRIMARY KEY, user_id, created_at, expires_at)`
+- `user_settings(user_id PRIMARY KEY, withholding_rate, big_move_threshold_pct, dca_split jsonb)` — created at registration
+- `holdings(id, user_id, ticker, shares numeric, avg_cost_usd numeric, created_at, updated_at, UNIQUE (user_id, ticker))`
 - `prices(ticker, trade_date, open, high, low, close numeric, change_pct numeric, PRIMARY KEY (ticker, trade_date))` — daily closes
-- `portfolio_daily(trade_date PRIMARY KEY, value_usd, value_thb, change_pct, change_thb)` — derived after each close
+- `portfolio_daily(user_id, trade_date, value_usd, value_thb, change_pct, change_thb, usd_thb, fx_rate_date, PRIMARY KEY (user_id, trade_date))` — derived after each close
 - `events(id, type, ticker nullable, event_date, event_time_utc nullable, payload jsonb, is_estimate bool, source, created_at)`
   - `type` ∈ `price_move | ex_dividend | dividend_pay | earnings | split | macro`
   - unique on `(type, ticker, event_date, source)` → upserts are idempotent
@@ -89,7 +99,7 @@ Run exactly one worker process. Each job takes a Redis lock so an overlapping ru
 | Job | Schedule (Asia/Bangkok) | What |
 |---|---|---|
 | sync_quotes | every 5 min, US market hours only | latest quote per holding → Redis (not Postgres) |
-| sync_daily_close | daily 05:30 | yesterday's closes → `prices`, compute `portfolio_daily`, create `price_move` events |
+| sync_daily_close | daily 05:30 | yesterday's closes → `prices` (once per distinct ticker), compute `portfolio_daily` for every user, create `price_move` events |
 | sync_dividends | daily 06:00 | declared + estimated dividends for all holdings |
 | sync_earnings | daily 06:00 | next 90 days of earnings |
 | sync_macro | daily 06:00 | FOMC, CPI, NFP |
@@ -99,8 +109,10 @@ Run exactly one worker process. Each job takes a Redis lock so an overlapping ru
 All jobs must be idempotent and safe to re-run.
 
 ## REST API
+All endpoints except `/api/health` and `/api/auth/{register,login}` require a logged-in session and act on the current user's data.
+- `POST /api/auth/register` (email, password, invite_code), `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
 - `GET/POST/PUT/DELETE /api/holdings`
-- `POST /api/holdings/import` (CSV: ticker,shares,avg_cost_usd)
+- `POST /api/holdings/import` (raw `text/csv` body: ticker,shares,avg_cost_usd — upsert, all-or-nothing)
 - `GET /api/quotes` → latest price, day change % and weight for every holding + portfolio value/change
 - `GET /api/prices?ticker=…&days=14` → daily closes (for sparklines)
 - `GET /api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` → per day: portfolio change % (if trading day) + events
@@ -110,6 +122,7 @@ All jobs must be idempotent and safe to re-run.
 - `GET /api/settings`, `PUT /api/settings` (withholding rate, DCA split)
 
 ## Frontend pages
+- **Login / Register** (register asks for the invite code). Unauthenticated users are redirected here.
 - **Calendar (month view):**
   - Top cards: portfolio value today (THB, change % and THB), net dividends this month, ex-dividend count, next earnings.
   - "Prices today" strip: one card per holding — price, change %, weight, 14-trading-day sparkline.
@@ -149,9 +162,9 @@ All jobs must be idempotent and safe to re-run.
 - Fonts: **IBM Plex Sans Thai** (UI), **IBM Plex Mono** (all numbers, prices, %).
 - Text must meet WCAG AA contrast (4.5:1) in both themes.
 
-## Seed holdings (shares to be filled in by me)
+## Holdings of the first user (imported via CSV)
 VOO, QQQM, SCHD, V, MSFT, KO, GOOGL, NVDA, AMZN
-Default DCA split for projections: VOO 70 / QQQM 20 / SCHD 10.
+Default DCA split for new users: VOO 70 / QQQM 20 / SCHD 10.
 
 ## Milestones
 1. **Phase 1:** docker-compose, migrations, holdings CRUD + CSV import, quotes + daily closes, portfolio daily change, dividend sync, FX, monthly calendar with price %, prices strip, income chart.

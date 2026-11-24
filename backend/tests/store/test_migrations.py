@@ -1,16 +1,23 @@
 from __future__ import annotations
 
-from decimal import Decimal
-
+import pytest
 from alembic import command
-from sqlalchemy import inspect, select, text
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.store.models import AppSettings, Holding
 from tests.conftest import alembic_config
 
-TABLES = {"holdings", "prices", "portfolio_daily", "events", "fx_rates", "settings"}
+TABLES = {
+    "users",
+    "user_sessions",
+    "user_settings",
+    "holdings",
+    "prices",
+    "portfolio_daily",
+    "events",
+    "fx_rates",
+}
 
 
 def _tables(connection: Connection) -> set[str]:
@@ -37,22 +44,27 @@ async def test_downgrade_then_upgrade_roundtrip(engine: AsyncEngine) -> None:
     assert after_up == TABLES
 
 
+def _upgrade_with_ownerless_position(connection: Connection) -> None:
+    cfg = alembic_config(connection)
+    command.downgrade(cfg, "0002")
+    connection.execute(text("UPDATE holdings SET shares = 5 WHERE ticker = 'VOO'"))
+    command.upgrade(cfg, "head")
+
+
+async def test_0003_refuses_to_drop_real_positions(engine: AsyncEngine) -> None:
+    async with engine.connect() as conn:
+        trans = await conn.begin()
+        try:
+            with pytest.raises(RuntimeError, match="no owner"):
+                await conn.run_sync(_upgrade_with_ownerless_position)
+        finally:
+            await trans.rollback()
+
+
 async def test_models_match_migrations(engine: AsyncEngine) -> None:
     """`alembic check` raises if autogenerate would produce any diff."""
     async with engine.connect() as conn:
         await conn.run_sync(lambda c: command.check(alembic_config(c)))
-
-
-async def test_seed_settings_row(session: AsyncSession) -> None:
-    row = (await session.execute(select(AppSettings))).scalar_one()
-    assert row.withholding_rate == Decimal("0.15")
-    assert row.big_move_threshold_pct == Decimal("3")
-    assert row.dca_split == {"VOO": "70", "QQQM": "20", "SCHD": "10"}
-
-
-async def test_seed_holdings(session: AsyncSession) -> None:
-    tickers = set((await session.execute(select(Holding.ticker))).scalars())
-    assert tickers >= {"VOO", "QQQM", "SCHD", "V", "MSFT", "KO", "GOOGL", "NVDA", "AMZN"}
 
 
 async def test_money_columns_are_numeric(session: AsyncSession) -> None:

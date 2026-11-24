@@ -13,10 +13,10 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    ForeignKey,
     Index,
     MetaData,
     Numeric,
-    SmallInteger,
     String,
     UniqueConstraint,
     func,
@@ -62,16 +62,48 @@ class EventType(enum.StrEnum):
     MACRO = "macro"
 
 
+class User(TimestampMixin, Base):
+    __tablename__ = "users"
+    __table_args__ = (CheckConstraint("email = lower(email)", name="email_lower"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(100))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+
+
+class UserSession(Base):
+    """Login session. Only the SHA-256 of the cookie token is stored."""
+
+    __tablename__ = "user_sessions"
+    __table_args__ = (Index("ix_user_sessions_user_id", "user_id"),)
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class Holding(TimestampMixin, Base):
     __tablename__ = "holdings"
     __table_args__ = (
+        UniqueConstraint("user_id", "ticker"),
         CheckConstraint("shares >= 0", name="shares_non_negative"),
         CheckConstraint("avg_cost_usd >= 0", name="avg_cost_non_negative"),
         CheckConstraint("ticker = upper(ticker)", name="ticker_upper"),
+        Index("ix_holdings_ticker", "ticker"),  # jobs collect distinct tickers
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    ticker: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False)
     shares: Mapped[Decimal] = mapped_column(Shares, nullable=False, server_default="0")
     avg_cost_usd: Mapped[Decimal] = mapped_column(Money, nullable=False, server_default="0")
 
@@ -95,10 +127,13 @@ class Price(Base):
 
 
 class PortfolioDaily(Base):
-    """Derived after each close. usd_thb records which FX rate was used for value_thb."""
+    """Per user, derived after each close. usd_thb records which FX rate was used."""
 
     __tablename__ = "portfolio_daily"
 
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
     trade_date: Mapped[date] = mapped_column(Date, primary_key=True)
     value_usd: Mapped[Decimal] = mapped_column(Money, nullable=False)
     value_thb: Mapped[Decimal] = mapped_column(Money, nullable=False)
@@ -155,24 +190,28 @@ class FxRate(Base):
     )
 
 
-class AppSettings(Base):
-    """Single-row table (id = 1) with user-editable settings."""
+DEFAULT_DCA_SPLIT_SQL = """'{"VOO": "70", "QQQM": "20", "SCHD": "10"}'::jsonb"""
 
-    __tablename__ = "settings"
+
+class UserSettings(Base):
+    """One row per user, created at registration."""
+
+    __tablename__ = "user_settings"
     __table_args__ = (
-        CheckConstraint("id = 1", name="single_row"),
         CheckConstraint(
             "withholding_rate >= 0 AND withholding_rate <= 1", name="withholding_range"
         ),
         CheckConstraint("big_move_threshold_pct > 0", name="big_move_positive"),
     )
 
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, server_default="1")
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
     withholding_rate: Mapped[Decimal] = mapped_column(Rate, nullable=False, server_default="0.15")
     big_move_threshold_pct: Mapped[Decimal] = mapped_column(Pct, nullable=False, server_default="3")
-    # {"VOO": "70", "QQQM": "20", "SCHD": "10"} — percent strings (money/ratios never as float)
+    # percent strings per ticker (money/ratios never as float)
     dca_split: Mapped[dict[str, str]] = mapped_column(
-        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+        JSONB, nullable=False, server_default=text(DEFAULT_DCA_SPLIT_SQL)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
