@@ -1,0 +1,208 @@
+# TanPort
+
+**Portfolio dividend & event calendar** — one calendar for everything happening to the US stocks you hold:
+daily price moves, dividends in Thai baht after US withholding tax, earnings, important news and macro events.
+
+- Daily price change of each holding and of the whole portfolio, in USD and THB
+- Monthly passive income (THB, net of the 15 % W-8BEN withholding)
+- What happened to each holding on any given day
+- A short morning digest on LINE
+
+Small, invite-only, multi-user: each user has their own holdings and settings; market data is shared.
+
+> **Status: Phase 1 in progress.** The backend API (auth, holdings, quotes, FX) works; the web UI isn't built yet.
+> See [Roadmap](#roadmap).
+
+UI reference: [`docs/mockups/`](docs/mockups/)
+
+---
+
+## Tech stack
+
+| Part | Tools |
+|---|---|
+| API | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (async) + asyncpg, Alembic |
+| Jobs | APScheduler worker (separate process), Redis locks and rate limits |
+| Data | PostgreSQL 16, Redis 7 (both via Docker Compose) |
+| Frontend | Next.js (App Router) + TypeScript + Tailwind *(not started yet)* |
+| Quality | ruff, mypy `--strict`, pytest + pytest-asyncio + respx |
+| Tooling | [uv](https://docs.astral.sh/uv/), GNU make |
+
+Money is `Decimal` in Python, `Numeric` in Postgres and a string in JSON. Never a float.
+
+## Data sources
+
+| Data | Provider (free tier) |
+|---|---|
+| Latest quotes, earnings calendar | [Finnhub](https://finnhub.io) |
+| Daily price history | [Tiingo](https://www.tiingo.com) |
+| Dividends (ex date, pay date, amount) | [Alpha Vantage](https://www.alphavantage.co) |
+| USD/THB reference rate | [Bank of Thailand API](https://portal.api.bot.or.th/) |
+
+Finnhub's free tier blocks candles and dividends. Each provider's limits and quirks are recorded in
+[`docs/data-sources.md`](docs/data-sources.md).
+
+---
+
+## Getting started
+
+### 1. Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Windows: `winget install astral-sh.uv`). uv installs Python 3.12 for you.
+- GNU make (Windows: `winget install ezwinports.make`)
+
+### 2. Configure
+
+```bash
+cp .env.example .env
+```
+
+Fill in `.env`:
+
+| Variable | Where to get it |
+|---|---|
+| `FINNHUB_API_KEY` | https://finnhub.io/dashboard |
+| `TIINGO_API_KEY` | https://www.tiingo.com/account/api/token |
+| `ALPHAVANTAGE_API_KEY` | https://www.alphavantage.co/support/#api-key |
+| `BOT_API_TOKEN` | https://portal.api.bot.or.th/: sign up, subscribe to **Exchange Rates**, then copy the token from *My apps* |
+| `INVITE_CODE` | Any hard-to-guess string. People need it to register; leave it empty to close registration. |
+
+`.env` is git-ignored. Never commit it.
+
+> Postgres is published on host port **5433**, not 5432, so it doesn't clash with a locally installed PostgreSQL.
+
+### 3. Run
+
+```bash
+make migrate   # starts Postgres + Redis, applies migrations
+make dev       # API on http://localhost:8000 (+ worker)
+```
+
+Interactive API docs: http://localhost:8000/docs
+
+### 4. Create an account and add holdings
+
+```bash
+# register (sets a session cookie)
+curl -c cookies.txt -H "Content-Type: application/json" \
+  -d '{"email":"me@example.com","password":"at-least-10-chars","invite_code":"<INVITE_CODE>"}' \
+  http://localhost:8000/api/auth/register
+
+# import holdings from CSV
+curl -b cookies.txt -H "Content-Type: text/csv" --data-binary @holdings.csv \
+  http://localhost:8000/api/holdings/import
+```
+
+`holdings.csv`:
+
+```csv
+ticker,shares,avg_cost_usd
+VOO,12.5,480.20
+SCHD,85.3,26.10
+KO,15,61.00
+```
+
+The import is **all-or-nothing**: if any row is invalid, nothing is saved, and the response lists each bad row by line number.
+Tickers that already exist are updated. Holdings that aren't in the file are left alone.
+
+### 5. Load market data
+
+Jobs can be run by hand (the worker will schedule them automatically in a later step):
+
+```bash
+cd backend
+uv run python -m app.jobs.sync_fx --since 2025-01-01   # USD/THB history (BOT: 31 days per request)
+uv run python -m app.jobs.sync_quotes --force          # latest quotes (normally only during US market hours)
+```
+
+Then `GET /api/quotes` returns today's prices, weights and portfolio value in USD and THB.
+
+---
+
+## Development
+
+| Command | What it does |
+|---|---|
+| `make up` / `make down` | Start / stop Postgres and Redis |
+| `make dev` | API (with reload) and worker |
+| `make migrate` | `alembic upgrade head` |
+| `make test` | Starts infra, runs pytest |
+| `make lint` | `ruff check` + `ruff format --check` + `mypy --strict` |
+| `make fmt` | Auto-format and auto-fix |
+
+Tests use a separate database (`tanport_test`) and Redis DB 15.
+Each test runs inside a transaction that is rolled back afterwards.
+Provider tests replay recorded responses from `backend/tests/fixtures/` with respx; no live API calls.
+
+New migration:
+
+```bash
+cd backend
+uv run alembic revision --autogenerate -m "describe the change"
+```
+
+`tests/store/test_migrations.py` runs `alembic check` and fails if the models and migrations drift apart.
+
+### Project layout
+
+```
+backend/
+  app/
+    api/         FastAPI routers + request/response schemas (thin)
+    domain/      pure business rules: tax, FX choice, portfolio change, market hours, estimates (no I/O)
+    providers/   typing.Protocol interfaces + Finnhub / Tiingo / Alpha Vantage / BOT clients
+    services/    orchestration of providers + store + Redis (e.g. FX refresh)
+    store/       SQLAlchemy models + repositories, Redis quote cache
+    jobs/        sync jobs (each takes a Redis lock; runnable with `python -m`)
+    main.py      API app          worker.py   scheduler entrypoint
+  migrations/    Alembic
+  tests/         mirrors app/; fixtures/ holds recorded API responses
+frontend/        Next.js app (coming)
+docs/            mockups, data-source notes
+```
+
+Project rules and conventions for contributors (and for Claude Code) live in [`CLAUDE.md`](CLAUDE.md).
+
+### Key rules
+
+- **Net dividend (THB)** = shares × dividend per share × (1 − withholding) × USD/THB, using the rate on the **pay date**.
+  If there is no rate for that day, the latest earlier rate is used, and the UI shows which date's rate it was.
+- The ex-dividend date and the pay date are separate events.
+- Store times in UTC; display them in `Asia/Bangkok`. US market hours come from `America/New_York`.
+- Weekends, holidays and days with no data show "market closed" / "no data yet", never 0 %.
+
+---
+
+## API (so far)
+
+All endpoints except health, register and login need a logged-in session cookie.
+
+| Method | Path | |
+|---|---|---|
+| `GET` | `/api/health` | liveness |
+| `POST` | `/api/auth/register` · `/login` · `/logout` | invite-only; login is rate-limited |
+| `GET` | `/api/auth/me` | current user |
+| `GET` `POST` | `/api/holdings` | list / create |
+| `GET` `PUT` `DELETE` | `/api/holdings/{id}` | one holding |
+| `POST` | `/api/holdings/import` | CSV body (`text/csv`) |
+| `GET` `PUT` | `/api/settings` | withholding rate, big-move threshold, DCA split |
+| `GET` | `/api/quotes` | market status, FX used, portfolio value/change, per-holding price and weight |
+
+## Roadmap
+
+**Phase 1**: core
+- [x] Docker Compose, uv + FastAPI skeleton, migrations
+- [x] Domain rules (tax, FX, portfolio change, NYSE calendar, dividend estimates)
+- [x] Invite-only multi-user auth, holdings CRUD + CSV import, settings
+- [x] Provider interfaces, shared Redis rate limiter, job locks
+- [x] USD/THB from Bank of Thailand
+- [x] Live quotes + `/api/quotes`
+- [ ] Daily closes, portfolio history, big-move events, `/api/calendar`, `/api/prices`
+- [ ] Dividends (declared + estimated) and `/api/income/monthly`
+- [ ] Scheduled worker
+- [ ] Web UI: login, calendar month view, prices strip, income chart, light/dark themes
+
+**Phase 2**: earnings and news sync, LLM news summaries with an importance score, day detail view
+
+**Phase 3**: LINE morning digest, macro events (FOMC/CPI/NFP), DCA income projection, polish
