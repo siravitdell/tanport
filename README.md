@@ -10,7 +10,8 @@ daily price moves, dividends in Thai baht after US withholding tax, earnings, im
 
 Small, invite-only, multi-user: each user has their own holdings and settings; market data is shared.
 
-> **Status: Phase 1 in progress.** The backend API (auth, holdings, quotes, FX) works; the web UI isn't built yet.
+> **Status: Phase 1 in progress.** The Phase 1 backend is complete: auth, holdings, quotes, daily closes,
+> calendar, dividends/income, FX and the scheduled worker. The web UI isn't built yet.
 > See [Roadmap](#roadmap).
 
 UI reference: [`docs/mockups/`](docs/mockups/)
@@ -108,7 +109,20 @@ Tickers that already exist are updated. Holdings that aren't in the file are lef
 
 ### 5. Load market data
 
-Jobs can be run by hand (the worker will schedule them automatically in a later step):
+`make dev` also starts the **worker**, which runs every job on a schedule (Bangkok time):
+
+| Job | When |
+|---|---|
+| `sync_quotes` | every 5 min (it only fetches during US market hours + 20 min) |
+| `sync_daily_close` | 05:30, again at 08:30 in case Tiingo publishes late |
+| `sync_dividends` | 06:00 |
+| `sync_fx` | 18:30, and once at worker start-up |
+| `cleanup_sessions` | 04:00 |
+
+Run exactly one worker. Each job holds a Redis lock, so overlapping runs are skipped, and every job is safe to re-run.
+The last success and the last error for each job are stored in the Redis hashes `jobs:last_success` / `jobs:last_error`.
+
+Any job can also be run by hand, for example right after importing holdings:
 
 ```bash
 cd backend
@@ -208,7 +222,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] Live quotes + `/api/quotes`
 - [x] Daily closes, portfolio history, big-move events, `/api/calendar`, `/api/prices`
 - [x] Dividends (declared + estimated) and `/api/income/monthly`
-- [ ] Scheduled worker
+- [x] Scheduled worker
 - [ ] Web UI: login, calendar month view, prices strip, income chart, light/dark themes
 
 **Phase 2**: earnings and news sync, LLM news summaries with an importance score, day detail view
