@@ -141,3 +141,47 @@ def trading_days(start: date, end: date) -> list[date]:
             out.append(d)
         d += timedelta(days=1)
     return out
+
+
+QUOTE_GRACE_AFTER_CLOSE = timedelta(minutes=20)
+
+
+def in_quote_window(now_utc: datetime, grace: timedelta = QUOTE_GRACE_AFTER_CLOSE) -> bool:
+    """Poll quotes while the market is open and briefly after the close (to catch final prices)."""
+    if now_utc.tzinfo is None:
+        raise ValueError("now_utc must be timezone-aware")
+    s = session(now_utc.astimezone(NEW_YORK).date())
+    return s is not None and s.open_utc <= now_utc < s.close_utc + grace
+
+
+@dataclass(frozen=True, slots=True)
+class MarketStatus:
+    is_open: bool
+    last_session_date: date  # today's session if it has started, else the previous one
+    next_open_utc: datetime
+
+
+def next_session(after_utc: datetime) -> Session:
+    """First session whose open is after `after_utc`."""
+    d = after_utc.astimezone(NEW_YORK).date()
+    while True:
+        s = session(d)
+        if s is not None and s.open_utc > after_utc:
+            return s
+        d += timedelta(days=1)
+
+
+def market_status(now_utc: datetime) -> MarketStatus:
+    if now_utc.tzinfo is None:
+        raise ValueError("now_utc must be timezone-aware")
+    today_ny = now_utc.astimezone(NEW_YORK).date()
+    today = session(today_ny)
+    if today is not None and now_utc >= today.open_utc:
+        last = today_ny
+    else:
+        last = previous_trading_day(today_ny)
+    return MarketStatus(
+        is_open=is_market_open(now_utc),
+        last_session_date=last,
+        next_open_utc=next_session(now_utc).open_utc,
+    )

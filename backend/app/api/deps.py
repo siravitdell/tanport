@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -42,3 +43,11 @@ async def get_current_user(request: Request, session: SessionDep) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_now() -> datetime:
+    """Current time (UTC). Overridden in tests to pin market open/closed scenarios."""
+    return datetime.now(UTC)
+
+
+NowDep = Annotated[datetime, Depends(get_now)]

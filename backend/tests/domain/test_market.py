@@ -6,8 +6,10 @@ import pytest
 
 from app.domain.market import (
     easter_sunday,
+    in_quote_window,
     is_market_open,
     is_trading_day,
+    market_status,
     nyse_holidays,
     previous_trading_day,
     session,
@@ -134,3 +136,66 @@ def test_trading_days_range() -> None:
         date(2026, 12, 28),
         date(2026, 12, 29),
     ]
+
+
+@pytest.mark.parametrize(
+    ("now", "expected"),
+    [
+        (datetime(2026, 12, 16, 14, 29, tzinfo=UTC), False),  # before open
+        (datetime(2026, 12, 16, 15, 0, tzinfo=UTC), True),
+        (datetime(2026, 12, 16, 21, 10, tzinfo=UTC), True),  # 16:10 ET, within 20-min grace
+        (datetime(2026, 12, 16, 21, 20, tzinfo=UTC), False),
+        (datetime(2026, 12, 19, 16, 0, tzinfo=UTC), False),  # Saturday
+    ],
+)
+def test_in_quote_window(now: datetime, expected: bool) -> None:
+    assert in_quote_window(now) is expected
+
+
+@pytest.mark.parametrize(
+    ("now", "is_open", "last", "next_open"),
+    [
+        # Wed 10:00 ET: open
+        (
+            datetime(2026, 12, 16, 15, 0, tzinfo=UTC),
+            True,
+            date(2026, 12, 16),
+            datetime(2026, 12, 17, 14, 30, tzinfo=UTC),
+        ),
+        # Wed 08:00 ET: before the open → yesterday's prices
+        (
+            datetime(2026, 12, 16, 13, 0, tzinfo=UTC),
+            False,
+            date(2026, 12, 15),
+            datetime(2026, 12, 16, 14, 30, tzinfo=UTC),
+        ),
+        # Saturday → Friday's session, opens Monday
+        (
+            datetime(2026, 12, 19, 12, 0, tzinfo=UTC),
+            False,
+            date(2026, 12, 18),
+            datetime(2026, 12, 21, 14, 30, tzinfo=UTC),
+        ),
+        # Christmas Eve after the 13:00 early close → next open skips Christmas
+        (
+            datetime(2026, 12, 24, 19, 0, tzinfo=UTC),
+            False,
+            date(2026, 12, 24),
+            datetime(2026, 12, 28, 14, 30, tzinfo=UTC),
+        ),
+        # summer (EDT): next open 13:30 UTC = 20:30 Bangkok
+        (
+            datetime(2026, 7, 15, 3, 0, tzinfo=UTC),
+            False,
+            date(2026, 7, 14),
+            datetime(2026, 7, 15, 13, 30, tzinfo=UTC),
+        ),
+    ],
+)
+def test_market_status(now: datetime, is_open: bool, last: date, next_open: datetime) -> None:
+    status = market_status(now)
+    assert (status.is_open, status.last_session_date, status.next_open_utc) == (
+        is_open,
+        last,
+        next_open,
+    )

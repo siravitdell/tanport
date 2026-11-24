@@ -29,6 +29,15 @@ def bangkok_today() -> date:
     return datetime.now(BANGKOK).date()
 
 
+async def fx_rate_on(session: AsyncSession, on: date) -> FxChoice:
+    """Read-only lookup (no provider needed): rate for `on`, else the latest earlier one."""
+    found = await fx_store.latest_on_or_before(session, PAIR, on)
+    if found is None:
+        raise NoFxRateError(f"no {PAIR} rate stored on or before {on.isoformat()}")
+    rate_date, rate = found
+    return select_rate({rate_date: rate}, on)
+
+
 class FxService:
     def __init__(
         self,
@@ -95,11 +104,7 @@ class FxService:
 
     async def rate_on(self, on: date) -> FxChoice:
         """Rate for `on` (e.g. a pay date); falls back to the latest earlier rate."""
-        found = await fx_store.latest_on_or_before(self._session, PAIR, on)
-        if found is None:
-            raise NoFxRateError(f"no {PAIR} rate stored on or before {on.isoformat()}")
-        rate_date, rate = found
-        return select_rate({rate_date: rate}, on)
+        return await fx_rate_on(self._session, on)
 
     async def latest(self) -> FxChoice:
         return await self.rate_on(self._today())

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import Settings, get_settings
 from app.providers.base import ProviderError
 from app.providers.bot_fx import BotFxProvider
+from app.providers.finnhub import FinnhubQuoteProvider
 from app.providers.http import ProviderHttp
 from app.ratelimit import provider_limiter
 from app.redis_client import make_redis
@@ -38,6 +39,13 @@ class Runtime:
             raise ProviderNotConfiguredError("bot", "BOT_API_TOKEN is not set")
         http = ProviderHttp("bot", self.http, provider_limiter(self.redis, "bot"))
         return BotFxProvider(http, token)
+
+    def finnhub_quotes(self) -> FinnhubQuoteProvider:
+        token = self.config.finnhub_api_key.get_secret_value()
+        if not token:
+            raise ProviderNotConfiguredError("finnhub", "FINNHUB_API_KEY is not set")
+        http = ProviderHttp("finnhub", self.http, provider_limiter(self.redis, "finnhub"))
+        return FinnhubQuoteProvider(http, token)
 
 
 @asynccontextmanager
