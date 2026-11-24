@@ -83,3 +83,40 @@ async def events_for(
         .order_by(Event.event_date, Event.type, Event.ticker)
     )
     return result.scalars().all()
+
+
+DIVIDEND_TYPES = (EventType.EX_DIVIDEND.value, EventType.DIVIDEND_PAY.value)
+
+
+async def replace_dividend_events(
+    session: AsyncSession,
+    ticker: str,
+    sources: Sequence[str],
+    window_start: date,
+    events: Sequence[EventIn],
+) -> int:
+    """Re-derive a ticker's dividend events from `window_start` on (estimates get replaced)."""
+    await session.execute(
+        delete(Event).where(
+            Event.type.in_(DIVIDEND_TYPES),
+            Event.ticker == ticker,
+            Event.source.in_(list(sources)),
+            Event.event_date >= window_start,
+        )
+    )
+    await upsert_events(session, events)
+    return len(events)
+
+
+async def dividend_pay_events(
+    session: AsyncSession, tickers: Iterable[str], start: date, end: date
+) -> Sequence[Event]:
+    result = await session.execute(
+        select(Event).where(
+            Event.type == EventType.DIVIDEND_PAY.value,
+            Event.ticker.in_(list(tickers)),
+            Event.event_date >= start,
+            Event.event_date <= end,
+        )
+    )
+    return result.scalars().all()

@@ -51,6 +51,9 @@ Trimmed real responses live in `backend/tests/fixtures/<provider>/`.
 - **AMZN returns one bogus row with `amount: "0.0"`** (2022-12-27) → drop rows with amount 0.
 - ETFs declare very late (VOO's December payment is not listed yet in late November) → estimates fill the gap.
 - Throttle/limit errors come back as HTTP 200 with an `"Information"` or `"Note"` key, not an HTTP error.
+- **Also max 1 request per second** (verified 2026-11-24): back-to-back calls get
+  `"Please consider spreading out your free API requests more sparingly (1 request per second)"`.
+  The text tells the two limits apart: `"per day"` = quota gone until tomorrow, otherwise a burst throttle.
 
 ### Bank of Thailand
 - Portal: https://portal.api.bot.or.th/ — product "Exchange Rates", plan 200 calls/hour.

@@ -89,6 +89,7 @@ PROVIDER_LIMITS: dict[str, tuple[int, float]] = {
     "tiingo": (45, 3600),  # 50 / hour (and 1000 / day)
     "tiingo_daily": (950, 86_400),
     "alphavantage": (24, 86_400),  # 25 / day
+    "alphavantage_burst": (1, 1.2),  # and max 1 request / second (verified 2026-11-24)
     "bot": (180, 3600),  # 200 / hour
 }
 

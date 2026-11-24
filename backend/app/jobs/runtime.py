@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings, get_settings
+from app.providers.alphavantage import AlphaVantageDividendProvider
 from app.providers.base import ProviderError
 from app.providers.bot_fx import BotFxProvider
 from app.providers.finnhub import FinnhubQuoteProvider
@@ -52,11 +53,30 @@ class Runtime:
         token = self.config.tiingo_api_key.get_secret_value()
         if not token:
             raise ProviderNotConfiguredError("tiingo", "TIINGO_API_KEY is not set")
-        # Hourly limit; waiting up to a few minutes for a slot is fine for a nightly job.
+        # Hourly limit: waiting a few minutes for a slot is fine for a nightly job.
+        # Daily limit: don't wait (a whole day) — fail and let the next run catch up.
         http = ProviderHttp(
-            "tiingo", self.http, provider_limiter(self.redis, "tiingo"), limiter_max_wait_s=300
+            "tiingo",
+            self.http,
+            provider_limiter(self.redis, "tiingo_daily"),
+            limiter_max_wait_s=0,
+            extra_limits=[(provider_limiter(self.redis, "tiingo"), 300)],
         )
         return TiingoPriceProvider(http, token)
+
+    def alphavantage_dividends(self) -> AlphaVantageDividendProvider:
+        key = self.config.alphavantage_api_key.get_secret_value()
+        if not key:
+            raise ProviderNotConfiguredError("alphavantage", "ALPHAVANTAGE_API_KEY is not set")
+        # 1 request/second: wait for it. 25/day: never wait — the job defers the rest instead.
+        http = ProviderHttp(
+            "alphavantage",
+            self.http,
+            provider_limiter(self.redis, "alphavantage"),
+            limiter_max_wait_s=0,
+            extra_limits=[(provider_limiter(self.redis, "alphavantage_burst"), 10)],
+        )
+        return AlphaVantageDividendProvider(http, key)
 
 
 @asynccontextmanager

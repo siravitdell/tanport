@@ -127,3 +127,24 @@ async def test_client_error_includes_body_with_sent_values_masked(http: Provider
     assert "Exceed limit period" in message
     assert SECRET not in message
     assert "***" in message
+
+
+@respx.mock
+async def test_extra_limits_are_checked_first(redis: Redis, sleep: SleepRecorder) -> None:
+    """A burst limit that refuses must not consume a slot of the daily quota."""
+    route = respx.get(URL).respond(json={})
+    daily = RateLimiter(redis, "daily", limit=5, window_s=86_400)
+    burst = RateLimiter(redis, "burst", limit=1, window_s=3600)
+    http = ProviderHttp(
+        "example",
+        httpx.AsyncClient(),
+        daily,
+        limiter_max_wait_s=0,
+        extra_limits=[(burst, 0)],
+        sleep=sleep,
+    )
+    await http.get_json(URL)
+    with pytest.raises(ProviderRateLimitedError, match="burst"):
+        await http.get_json(URL)
+    assert route.call_count == 1
+    assert (await redis.zcard("ratelimit:daily")) == 1

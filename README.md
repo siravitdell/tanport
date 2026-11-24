@@ -116,6 +116,8 @@ uv run python -m app.jobs.sync_fx --since 2025-01-01   # USD/THB history (BOT: 3
 uv run python -m app.jobs.sync_quotes --force          # latest quotes (normally only during US market hours)
 uv run python -m app.jobs.sync_daily_close             # daily closes (~100 days back the first time),
                                                        # big-move events, every user's portfolio history
+uv run python -m app.jobs.sync_dividends               # declared + estimated dividends (Alpha Vantage:
+                                                       # 25 calls/day — the rest is deferred to the next run)
 ```
 
 Then `GET /api/quotes` returns today's prices, weights and portfolio value in USD and THB, and
@@ -193,6 +195,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 | `GET` | `/api/quotes` | market status, FX used, portfolio value/change, per-holding price and weight |
 | `GET` | `/api/prices?ticker=VOO&days=14` | recent daily closes (sparklines) |
 | `GET` | `/api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | per day: status (`ok`/`no_data`/`future`/`closed`), portfolio change, events (≤ 62 days) |
+| `GET` | `/api/income/monthly?year=YYYY` | net THB dividends per month (received vs upcoming), every payment with the FX rate used, per-holding totals and yield on cost |
 
 ## Roadmap
 
@@ -204,7 +207,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] USD/THB from Bank of Thailand
 - [x] Live quotes + `/api/quotes`
 - [x] Daily closes, portfolio history, big-move events, `/api/calendar`, `/api/prices`
-- [ ] Dividends (declared + estimated) and `/api/income/monthly`
+- [x] Dividends (declared + estimated) and `/api/income/monthly`
 - [ ] Scheduled worker
 - [ ] Web UI: login, calendar month view, prices strip, income chart, light/dark themes
 

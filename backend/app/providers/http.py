@@ -6,7 +6,7 @@ Never put a request URL in an error or log message: API keys travel in query str
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
 import httpx
@@ -50,14 +50,18 @@ class ProviderHttp:
         limiter: RateLimiter | None = None,
         *,
         limiter_max_wait_s: float = 60,
+        extra_limits: Sequence[tuple[RateLimiter, float]] = (),
         retries: int = 2,
         backoff_s: float = 1.0,
         sleep: Sleep = asyncio.sleep,
     ) -> None:
+        """`extra_limits` (limiter, max wait) are taken first — e.g. a per-second burst limit
+        before a daily quota, so waiting on the burst never wastes a daily slot."""
         self.provider = provider
         self._client = client
-        self._limiter = limiter
-        self._limiter_max_wait_s = limiter_max_wait_s
+        self._limits = [*extra_limits]
+        if limiter is not None:
+            self._limits.append((limiter, limiter_max_wait_s))
         self._retries = retries
         self._backoff_s = backoff_s
         self._sleep = sleep
@@ -74,12 +78,14 @@ class ProviderHttp:
         for attempt in range(self._retries + 1):
             if attempt:
                 await self._sleep(self._backoff_s * 2 ** (attempt - 1))
-            if self._limiter is not None:
+            for limiter, max_wait in self._limits:
                 try:
-                    await self._limiter.acquire(max_wait_s=self._limiter_max_wait_s)
+                    await limiter.acquire(max_wait_s=max_wait)
                 except RateLimitExceededError as exc:
                     raise ProviderRateLimitedError(
-                        self.provider, "local rate limit reached", exc.retry_after_s
+                        self.provider,
+                        f"local rate limit {limiter.name!r} reached",
+                        exc.retry_after_s,
                     ) from None
 
             try:
