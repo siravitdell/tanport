@@ -15,6 +15,7 @@ from app.providers.base import ProviderError
 from app.providers.bot_fx import BotFxProvider
 from app.providers.finnhub import FinnhubQuoteProvider
 from app.providers.http import ProviderHttp
+from app.providers.tiingo import TiingoPriceProvider
 from app.ratelimit import provider_limiter
 from app.redis_client import make_redis
 from app.store.db import make_engine, make_session_factory
@@ -46,6 +47,16 @@ class Runtime:
             raise ProviderNotConfiguredError("finnhub", "FINNHUB_API_KEY is not set")
         http = ProviderHttp("finnhub", self.http, provider_limiter(self.redis, "finnhub"))
         return FinnhubQuoteProvider(http, token)
+
+    def tiingo_prices(self) -> TiingoPriceProvider:
+        token = self.config.tiingo_api_key.get_secret_value()
+        if not token:
+            raise ProviderNotConfiguredError("tiingo", "TIINGO_API_KEY is not set")
+        # Hourly limit; waiting up to a few minutes for a slot is fine for a nightly job.
+        http = ProviderHttp(
+            "tiingo", self.http, provider_limiter(self.redis, "tiingo"), limiter_max_wait_s=300
+        )
+        return TiingoPriceProvider(http, token)
 
 
 @asynccontextmanager

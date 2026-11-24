@@ -63,7 +63,9 @@ class DailyBar:
     open: Decimal | None
     high: Decimal | None
     low: Decimal | None
-    close: Decimal
+    close: Decimal  # as traded (not dividend-adjusted)
+    # > 1 on the day a split takes effect (e.g. 10 for a 10:1 split); 1 otherwise
+    split_factor: Decimal = Decimal(1)
 
 
 @dataclass(frozen=True, slots=True)

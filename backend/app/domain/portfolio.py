@@ -15,6 +15,12 @@ from app.domain.money import pct_change
 
 
 @dataclass(frozen=True, slots=True)
+class Position:
+    ticker: str
+    shares: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class HoldingDay:
     ticker: str
     shares: Decimal

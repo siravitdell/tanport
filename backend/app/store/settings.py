@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.store.models import UserSettings
@@ -35,3 +36,10 @@ async def update_user_settings(
     await session.flush()
     await session.refresh(row)
     return row
+
+
+async def min_big_move_threshold(session: AsyncSession, default: Decimal) -> Decimal:
+    """Lowest threshold any user has set (shared price_move events must cover everyone)."""
+    result = await session.execute(select(func.min(UserSettings.big_move_threshold_pct)))
+    lowest = result.scalar_one_or_none()
+    return min(lowest, default) if lowest is not None else default

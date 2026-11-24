@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,3 +45,41 @@ async def upsert_events(session: AsyncSession, events: Sequence[EventIn]) -> int
     )
     result = await session.execute(stmt)
     return int(getattr(result, "rowcount", 0) or 0)
+
+
+async def delete_events(
+    session: AsyncSession,
+    *,
+    event_type: EventType,
+    ticker: str,
+    start: date,
+    end: date,
+    source: str,
+) -> None:
+    """Clear one ticker's events of a type in a date range before re-deriving them."""
+    await session.execute(
+        delete(Event).where(
+            Event.type == event_type.value,
+            Event.ticker == ticker,
+            Event.event_date >= start,
+            Event.event_date <= end,
+            Event.source == source,
+        )
+    )
+
+
+async def events_for(
+    session: AsyncSession, tickers: Iterable[str], start: date, end: date
+) -> Sequence[Event]:
+    """Events for the given tickers plus market-wide ones (ticker NULL), by date."""
+    tickers = list(tickers)
+    result = await session.execute(
+        select(Event)
+        .where(
+            Event.event_date >= start,
+            Event.event_date <= end,
+            or_(Event.ticker.in_(tickers), Event.ticker.is_(None)),
+        )
+        .order_by(Event.event_date, Event.type, Event.ticker)
+    )
+    return result.scalars().all()

@@ -14,13 +14,13 @@ from decimal import Decimal
 from typing import Literal
 
 from app.domain.money import pct_change
-from app.domain.portfolio import HoldingDay, PortfolioChange, portfolio_change, weights
-
-
-@dataclass(frozen=True, slots=True)
-class Position:
-    ticker: str
-    shares: Decimal
+from app.domain.portfolio import (
+    HoldingDay,
+    PortfolioChange,
+    Position,
+    portfolio_change,
+    weights,
+)
 
 
 @dataclass(frozen=True, slots=True)

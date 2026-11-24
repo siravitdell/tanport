@@ -114,9 +114,12 @@ Jobs can be run by hand (the worker will schedule them automatically in a later 
 cd backend
 uv run python -m app.jobs.sync_fx --since 2025-01-01   # USD/THB history (BOT: 31 days per request)
 uv run python -m app.jobs.sync_quotes --force          # latest quotes (normally only during US market hours)
+uv run python -m app.jobs.sync_daily_close             # daily closes (~100 days back the first time),
+                                                       # big-move events, every user's portfolio history
 ```
 
-Then `GET /api/quotes` returns today's prices, weights and portfolio value in USD and THB.
+Then `GET /api/quotes` returns today's prices, weights and portfolio value in USD and THB, and
+`GET /api/calendar?from=…&to=…` returns the daily portfolio change and events.
 
 ---
 
@@ -188,6 +191,8 @@ All endpoints except health, register and login need a logged-in session cookie.
 | `POST` | `/api/holdings/import` | CSV body (`text/csv`) |
 | `GET` `PUT` | `/api/settings` | withholding rate, big-move threshold, DCA split |
 | `GET` | `/api/quotes` | market status, FX used, portfolio value/change, per-holding price and weight |
+| `GET` | `/api/prices?ticker=VOO&days=14` | recent daily closes (sparklines) |
+| `GET` | `/api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | per day: status (`ok`/`no_data`/`future`/`closed`), portfolio change, events (≤ 62 days) |
 
 ## Roadmap
 
@@ -198,7 +203,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] Provider interfaces, shared Redis rate limiter, job locks
 - [x] USD/THB from Bank of Thailand
 - [x] Live quotes + `/api/quotes`
-- [ ] Daily closes, portfolio history, big-move events, `/api/calendar`, `/api/prices`
+- [x] Daily closes, portfolio history, big-move events, `/api/calendar`, `/api/prices`
 - [ ] Dividends (declared + estimated) and `/api/income/monthly`
 - [ ] Scheduled worker
 - [ ] Web UI: login, calendar month view, prices strip, income chart, light/dark themes

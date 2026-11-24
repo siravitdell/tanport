@@ -14,7 +14,8 @@ from app.api.types import DecimalStr
 from app.domain.errors import NoFxRateError
 from app.domain.fx import FxChoice
 from app.domain.market import BANGKOK, market_status
-from app.domain.quotes import Position, PriceSnapshot, build_quotes_view
+from app.domain.portfolio import Position
+from app.domain.quotes import PriceSnapshot, build_quotes_view
 from app.services.fx import fx_rate_on
 from app.store.holdings import list_holdings
 from app.store.quote_cache import load_quotes

@@ -10,6 +10,10 @@ import structlog
 
 def configure_logging(level: str = "INFO") -> None:
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level.upper())
+    # httpx logs every request URL at INFO — including query strings that carry API keys
+    # (Finnhub, Alpha Vantage). Our own provider logs record the path only.
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

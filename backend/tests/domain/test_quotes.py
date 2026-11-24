@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from app.domain.quotes import Position, PriceSnapshot, build_quotes_view
+from app.domain.portfolio import Position
+from app.domain.quotes import PriceSnapshot, build_quotes_view
 
 D = Decimal
 T1 = datetime(2026, 12, 16, 20, 55, tzinfo=UTC)
