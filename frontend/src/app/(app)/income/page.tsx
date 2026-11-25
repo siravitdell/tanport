@@ -1,5 +1,5 @@
-import { ComingSoon } from "@/components/ComingSoon";
+import { IncomeView } from "@/components/income/IncomeView";
 
 export default function IncomePage() {
-  return <ComingSoon title="รายได้ปันผล" note="กราฟรายเดือน ยอดรวมทั้งปี และ yield on cost รายหุ้น" />;
+  return <IncomeView />;
 }

@@ -10,9 +10,9 @@ daily price moves, dividends in Thai baht after US withholding tax, earnings, im
 
 Small, invite-only, multi-user: each user has their own holdings and settings; market data is shared.
 
-> **Status: Phase 1 in progress.** The Phase 1 backend is complete: auth, holdings, quotes, daily closes,
-> calendar, dividends/income, FX and the scheduled worker. The web app has login/register, light/dark
-> themes and the calendar page; the income page is next.
+> **Status: Phase 1 complete.** Auth, holdings, quotes, daily closes, calendar, dividends/income, FX,
+> the scheduled worker, and the web app (login, calendar, income; light/dark). Holdings are still
+> imported with curl until the holdings page lands.
 > See [Roadmap](#roadmap).
 
 UI reference: [`docs/mockups/`](docs/mockups/)
@@ -189,8 +189,10 @@ backend/
 frontend/
   src/
     app/         routes: login/, (app)/ = pages that need a session (calendar, income)
-    components/  header, theme toggle, auth provider, calendar/ (cards, prices strip, month grid, day panel)
-    lib/         typed API client, string-based number formatting, month grid / event chips (+ *.test.ts), theme
+    components/  header, theme toggle, auth provider, calendar/ (cards, prices strip, month grid,
+                 day panel), income/ (cards, monthly chart, per-holding table)
+    lib/         typed API client, string-based number formatting, month grid / event chips,
+                 income bars (+ *.test.ts), theme
     proxy.ts     no session cookie → /login
     app/globals.css  every color as a CSS variable (light + dark), mapped to Tailwind
 docs/            mockups, data-source notes
@@ -238,7 +240,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] Daily closes, portfolio history, big-move events, `/api/calendar`, `/api/prices`
 - [x] Dividends (declared + estimated) and `/api/income/monthly`
 - [x] Scheduled worker
-- [ ] Web UI: login, calendar month view, prices strip, income chart, light/dark themes
+- [x] Web UI: login, calendar month view, prices strip, income chart, light/dark themes
 
 **Phase 2**: earnings and news sync, LLM news summaries with an importance score, day detail view
 
