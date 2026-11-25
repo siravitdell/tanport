@@ -17,7 +17,9 @@ from sqlalchemy import (
     Index,
     MetaData,
     Numeric,
+    SmallInteger,
     String,
+    Text,
     UniqueConstraint,
     func,
     text,
@@ -106,6 +108,38 @@ class Holding(TimestampMixin, Base):
     ticker: Mapped[str] = mapped_column(String(16), nullable=False)
     shares: Mapped[Decimal] = mapped_column(Shares, nullable=False, server_default="0")
     avg_cost_usd: Mapped[Decimal] = mapped_column(Money, nullable=False, server_default="0")
+
+
+class News(Base):
+    """Shared market data: one row per (ticker, article). Raw text from the provider; the Thai
+    summary and the 1–5 importance are filled in later by the LLM step (NULL until then)."""
+
+    __tablename__ = "news"
+    __table_args__ = (
+        UniqueConstraint("ticker", "url"),  # the same article can be filed under two holdings
+        CheckConstraint("importance BETWEEN 1 AND 5", name="importance_range"),
+        CheckConstraint("ticker = upper(ticker)", name="ticker_upper"),
+        Index("ix_news_ticker_published_at", "ticker", "published_at"),
+        Index("ix_news_ticker_headline_key", "ticker", "headline_key"),  # near-duplicate check
+        Index("ix_news_published_at", "published_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    headline: Mapped[str] = mapped_column(Text, nullable=False)
+    headline_key: Mapped[str] = mapped_column(Text, nullable=False)  # normalized, for dedupe
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)  # outlet, e.g. "Yahoo"
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)  # e.g. "finnhub"
+    provider_id: Mapped[str | None] = mapped_column(String(64))
+    snippet: Mapped[str | None] = mapped_column(Text)  # provider's own summary (English)
+    summary: Mapped[str | None] = mapped_column(Text)  # LLM summary (Thai)
+    importance: Mapped[int | None] = mapped_column(SmallInteger)
+    summarized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class TradeSide(enum.StrEnum):

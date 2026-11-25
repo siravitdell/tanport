@@ -92,7 +92,7 @@ docker-compose.yml
 - `events(id, type, ticker nullable, event_date, event_time_utc nullable, payload jsonb, is_estimate bool, source, created_at)`
   - `type` ∈ `price_move | ex_dividend | dividend_pay | earnings | split | macro`
   - unique on `(type, ticker, event_date, source)` → upserts are idempotent
-- `news(id, ticker, published_at, headline, url unique, source, summary, importance smallint 1-5, created_at)`
+- `news(id, ticker, published_at, headline, headline_key, url, source, provider, provider_id, snippet, summary, importance smallint 1-5, summarized_at, created_at, UNIQUE (ticker, url))` — `snippet` = provider's English summary; `summary`/`importance` = LLM output (NULL until scored). Unique per (ticker, url) because one article can be filed under several holdings.
 - `fx_rates(date, pair, rate)`
 
 ## Jobs (`app/worker.py`, APScheduler)

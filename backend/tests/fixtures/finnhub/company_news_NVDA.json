@@ -1,0 +1,79 @@
+[
+  {
+    "category": "company",
+    "datetime": 1795607739,
+    "headline": "Dow Jones Futures Fall, Techs Tumble; Trump Says 'Not Too Late' For U.S. To Take Nvidia Stake",
+    "id": 144119802,
+    "image": "https://s.yimg.com/rz/stage/p/yahoo_finance_en-US_h_p_finance_2.png",
+    "related": "NVDA",
+    "source": "Yahoo",
+    "summary": "Futures fell after AI stocks tumbled but medicals, retailers and more rose. President Trump mused about an Nvidia stake. Fed inflation data looms.",
+    "url": "https://finnhub.io/api/news?id=7a77e79b293e523a9935367d1c2b147c58c1598fa4944f95c911e1412c024540"
+  },
+  {
+    "category": "company",
+    "datetime": 1795606647,
+    "headline": "AI Chips Update - NVIDIA Reinstates Huang Amid Compliance and Leadership Focus",
+    "id": 144121460,
+    "image": "https://s.yimg.com/rz/stage/p/yahoo_finance_en-US_h_p_finance_2.png",
+    "related": "NVDA",
+    "source": "Yahoo",
+    "summary": "NVIDIA has reinstated Jensen Huang as President, CEO, and Board Director following unanimous board approval. The decision came after consultations and considerations regarding potential national security implications, resulting in confidence that Huang poses no risk in this respect. As part of its governance and compliance overhaul, NVIDIA is also forming a National Security and Export Control Committee to manage trade compliance and risks, while seeking a new Chief Compliance Officer to...",
+    "url": "https://finnhub.io/api/news?id=715df2fd9dfcd04b3b0b578e5c2746331bd9596534ec6d0901f02faf7c90bac8"
+  },
+  {
+    "category": "company",
+    "datetime": 1795606500,
+    "headline": "Jensen Huang Says Nvidia's Next-Gen Vera Rubin Chips Will Generate $40 Billion in Revenue per Gigawatt, Up From $25 Billion for Grace Blackwell. What That Means for NVDA's Growth Runway.",
+    "id": 144121461,
+    "image": "https://s.yimg.com/rz/stage/p/yahoo_finance_en-US_h_p_finance_2.png",
+    "related": "NVDA",
+    "source": "Yahoo",
+    "summary": "Nvidia isn't just achieving higher revenue per gigawatt through increased GPU selling prices.",
+    "url": "https://finnhub.io/api/news?id=cf8fb51cb6dab0b63d13acbb10365543fe09504596082b5a1c9ac068c1cc6d8f"
+  },
+  {
+    "category": "company",
+    "datetime": 1795606312,
+    "headline": "CoreWeave Stock At $43: What If It Just Stops Building?",
+    "id": 144121469,
+    "image": "https://s.yimg.com/rz/stage/p/yahoo_finance_en-US_h_p_finance_2.png",
+    "related": "NVDA",
+    "source": "Yahoo",
+    "summary": "Today's big story: Anthropic Below Its IPO Price: Do Giants Come Back.",
+    "url": "https://finnhub.io/api/news?id=e8fb6716b458a4e2a0d95f07be638412a191f4c8781eb9dfab6a2cd18cb8c330"
+  },
+  {
+    "category": "company",
+    "datetime": 1795606202,
+    "headline": "The S&P 500 Entered Correction Territory. Here’s What History Says Happens Next.",
+    "id": 144120386,
+    "image": "https://s.yimg.com/rz/stage/p/yahoo_finance_en-US_h_p_finance_2.png",
+    "related": "NVDA",
+    "source": "Yahoo",
+    "summary": "History offers us interesting insight.",
+    "url": "https://finnhub.io/api/news?id=3c78e1668e431793e4a1cb4ce10f5bc6ae318527a47fee632afd8f606a88890d"
+  },
+  {
+    "category": "company",
+    "datetime": 1795539804,
+    "headline": "The Bear Isn't Gone",
+    "id": 144089527,
+    "image": "https://static.seekingalpha.com/cdn/s3/uploads/getty_images/2292024428/image_2292024428.jpg?io=getty-c-og",
+    "related": "NVDA",
+    "source": "SeekingAlpha",
+    "summary": "Jensen Huangâs return to Nvidia reduces industry uncertainty, but a 30% share-price swing does not imply a comparable intrinsic-value change.",
+    "url": "https://finnhub.io/api/news?id=4b3b6b87aedaf60a5fa467f08e1311ce2c61e46d73be66d14d39e6590851f7be"
+  },
+  {
+    "category": "company",
+    "datetime": 1795593336,
+    "headline": "Dell Technologies: Don't Let Market Fatigue Blind You (Earnings Review)",
+    "id": 144121975,
+    "image": "",
+    "related": "NVDA",
+    "source": "SeekingAlpha",
+    "summary": "",
+    "url": "https://finnhub.io/api/news?id=40e78dbbe978252903584943688e82f338f94477edd3e9a2038d88b512b079ca"
+  }
+]

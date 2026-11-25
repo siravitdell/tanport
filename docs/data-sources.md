@@ -25,7 +25,8 @@ Trimmed real responses live in `backend/tests/fixtures/<provider>/`.
 | `PriceHistoryProvider` | Tiingo |
 | `DividendProvider` | Alpha Vantage |
 | `FXProvider` | Bank of Thailand |
-| `EarningsProvider` (Phase 2) | Finnhub |
+| `EarningsProvider` (Phase 2) | Finnhub (per symbol) |
+| `NewsProvider` (Phase 2) | Finnhub company-news |
 | `MacroProvider` (Phase 3) | TBD |
 
 ## Provider notes
@@ -34,6 +35,21 @@ Trimmed real responses live in `backend/tests/fixtures/<provider>/`.
 - Base `https://finnhub.io/api/v1`, `token` query param. 60 calls/min.
 - `/quote` → `{"c","d","dp","h","l","o","pc","t"}` as floats; `t` = unix seconds.
 - Earnings `hour` may be `""` (unknown), `"bmo"`, `"amc"`.
+
+#### Earnings and news (verified 2026-11-25, Phase 2)
+| Endpoint | Result |
+|---|---|
+| `/calendar/earnings?symbol=…&from&to` | ✅ upcoming and past; past rows carry `epsActual` / `revenueActual` |
+| `/calendar/earnings?from&to` (whole market) | ⚠️ **capped at 1,500 rows**: a 90-day window comes back truncated (MSFT's 2027-01-26 date was missing) → **call per symbol** (9 holdings = 9 calls/day) |
+| `/company-news?symbol=…&from&to` | ✅ stocks **and ETFs** (VOO: ~150 items/week). About **1 year** of history (400 days back = `[]`) |
+
+- Earnings rows: `symbol, date (US date), hour ("bmo"|"amc"|""), quarter, year, epsEstimate, epsActual, revenueEstimate, revenueActual` (floats/null). In the full-market sample: 747 amc, 157 bmo, 596 unknown. ETFs have none.
+- News items: `id, category, datetime (unix s), headline, summary, source, url, image, related` (= the queried symbol).
+  - **Volume is high**: NVDA returned 248 items for ~1.5 days (Yahoo 208, SeekingAlpha 19, Benzinga 10, CNBC 8). Many are market-wide pieces filed under the symbol → dedupe + importance filtering must happen **before** any LLM call.
+  - `url` is a Finnhub redirect (`https://finnhub.io/api/news?id=…`), unique per item; it carries no API key. Near-duplicates (same story, several outlets) have different URLs → also dedupe by headline.
+  - `summary` can be empty (~2–6 %), `image` too.
+  - **Mojibake from the source**: some SeekingAlpha texts arrive double-encoded (`Buffettâ\u0080\u0099s` for `Buffett's`) → repair at the provider boundary.
+  - The same article can be filed under several held symbols, so news is unique per **(ticker, url)**.
 
 ### Tiingo
 - `GET https://api.tiingo.com/tiingo/daily/{ticker}/prices?startDate=YYYY-MM-DD&token=…`

@@ -103,6 +103,66 @@ def build_probes(env: dict[str, str]) -> list[Probe]:
             "FINNHUB_API_KEY",
         ),
         Probe(
+            # whole market, no symbol: one call covers every holding (if the free tier allows)
+            "finnhub_earnings_cal_all",
+            f"{fh_base}/calendar/earnings",
+            {
+                "from": today.isoformat(),
+                "to": (today + timedelta(days=90)).isoformat(),
+                "token": fh,
+            },
+            {},
+            "FINNHUB_API_KEY",
+        ),
+        Probe(
+            "finnhub_earnings_cal_past_NVDA",
+            f"{fh_base}/calendar/earnings",
+            {
+                "from": (today - timedelta(days=60)).isoformat(),
+                "to": today.isoformat(),
+                "symbol": "NVDA",
+                "token": fh,
+            },
+            {},
+            "FINNHUB_API_KEY",
+        ),
+        Probe(
+            "finnhub_company_news_NVDA",
+            f"{fh_base}/company-news",
+            {
+                "symbol": "NVDA",
+                "from": (today - timedelta(days=2)).isoformat(),
+                "to": today.isoformat(),
+                "token": fh,
+            },
+            {},
+            "FINNHUB_API_KEY",
+        ),
+        Probe(
+            "finnhub_company_news_VOO",  # ETFs: is there company news at all?
+            f"{fh_base}/company-news",
+            {
+                "symbol": "VOO",
+                "from": (today - timedelta(days=7)).isoformat(),
+                "to": today.isoformat(),
+                "token": fh,
+            },
+            {},
+            "FINNHUB_API_KEY",
+        ),
+        Probe(
+            "finnhub_company_news_NVDA_old",  # how far back does the free tier go?
+            f"{fh_base}/company-news",
+            {
+                "symbol": "NVDA",
+                "from": (today - timedelta(days=400)).isoformat(),
+                "to": (today - timedelta(days=395)).isoformat(),
+                "token": fh,
+            },
+            {},
+            "FINNHUB_API_KEY",
+        ),
+        Probe(
             "finnhub_economic_cal",
             f"{fh_base}/calendar/economic",
             {
@@ -173,11 +233,13 @@ def verdict(status: int, body: str) -> str:
     return "OK"
 
 
-async def run(env: dict[str, str]) -> int:
+async def run(env: dict[str, str], only: str | None = None) -> int:
     OUT.mkdir(exist_ok=True)
     rows: list[tuple[str, str, str]] = []
     async with httpx.AsyncClient(timeout=30) as client:
         for probe in build_probes(env):
+            if only and not probe.name.startswith(only):
+                continue
             if not env.get(probe.key_name):
                 rows.append((probe.name, "SKIPPED", f"{probe.key_name} not set"))
                 continue
@@ -206,4 +268,8 @@ async def run(env: dict[str, str]) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(asyncio.run(run(load_env(ROOT / ".env"))))
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--only", help="run only probes whose name starts with this, e.g. finnhub")
+    raise SystemExit(asyncio.run(run(load_env(ROOT / ".env"), parser.parse_args().only)))

@@ -1,0 +1,57 @@
+[
+  {
+    "category": "company",
+    "datetime": 1795582326,
+    "headline": "Gold Stopped Protecting Portfolios When Stocks Needed It Most",
+    "id": 144115033,
+    "image": "https://static.seekingalpha.com/cdn/s3/uploads/getty_images/2269983150/image_2269983150.jpg?io=getty-c-og",
+    "related": "VOO",
+    "source": "SeekingAlpha",
+    "summary": "SPDR Gold Shares ETF is a hold as central bank buying and liquidity-driven selling support retain gold despite its sharp decline.",
+    "url": "https://finnhub.io/api/news?id=a297adb759c841823b20b9d23b2fb321b4f265513dce8941ae8fffd8af72a597"
+  },
+  {
+    "category": "company",
+    "datetime": 1795575900,
+    "headline": "Developed World Growth Spurt Cools In November Amid Sustained Inflation",
+    "id": 144109264,
+    "image": "https://static.seekingalpha.com/cdn/s3/uploads/getty_images/2203138957/image_2203138957.jpg?io=getty-c-og",
+    "related": "VOO",
+    "source": "SeekingAlpha",
+    "summary": "Growth slowed across the major developed economies for a second successive month in November, according to early survey indications.",
+    "url": "https://finnhub.io/api/news?id=11ed65b798975bc335addea56c023be573afe0712a883ef05ff80d954db6a906"
+  },
+  {
+    "category": "company",
+    "datetime": 1795565100,
+    "headline": "Labour Market Comments",
+    "id": 144099887,
+    "image": "https://static.seekingalpha.com/cdn/s3/uploads/getty_images/2270500237/image_2270500237.jpg?io=getty-c-og",
+    "related": "VOO",
+    "source": "SeekingAlpha",
+    "summary": "The economy in the United States has been a two speed affair - broadly growing at a pace that is decelerating, while there has been a mania in AI and data centres",
+    "url": "https://finnhub.io/api/news?id=282ed401eb9264ffcc07c5082a7571265682447f82fd7f3c8e8094f9df61da6e"
+  },
+  {
+    "category": "company",
+    "datetime": 1795585269,
+    "headline": "4 Reasons The Market Could Be Underestimating Chances Of A Recovery In Equities Won't Be V-Shaped",
+    "id": 144117898,
+    "image": "https://static.seekingalpha.com/cdn/s3/uploads/getty_images/2212339480/image_2212339480.jpg?io=getty-c-og",
+    "related": "VOO",
+    "source": "SeekingAlpha",
+    "summary": "Analyst sees no guarantee of high equity returns: Buffettâs 1999 framework ties gains to rates, GDP growth and corporate profitsâ share of GDP.",
+    "url": "https://finnhub.io/api/news?id=562abdf207dd9d4897a5131fc39bc9e62861dc5b0f2b60c260748192436b75fd"
+  },
+  {
+    "category": "company",
+    "datetime": 1795513404,
+    "headline": "The First 6% Up Day Outside A Bear Market (Yet?)",
+    "id": 144084848,
+    "image": "",
+    "related": "VOO",
+    "source": "SeekingAlpha",
+    "summary": "",
+    "url": "https://finnhub.io/api/news?id=a39e11e8b65b665d737ba5478d1309f39b9bcea3908ab1b2d787150fcc5d46e0"
+  }
+]

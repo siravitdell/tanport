@@ -16,6 +16,7 @@ TABLES = {
     "user_settings",
     "holdings",
     "trades",
+    "news",
     "prices",
     "portfolio_daily",
     "events",
