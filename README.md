@@ -240,6 +240,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] Scheduled worker
 - [x] Web UI: login, calendar month view, prices strip, income chart, light/dark themes
 - [x] Trade log (buy/sell, average cost, realized/unrealized P/L split into price and FX), portfolio page, settings page
+- [x] History from the trade log: portfolio days, dividends (shares held before the ex-date) and calendar events use what was held on each date
 
 **Phase 2**: earnings and news sync, LLM news summaries with an importance score, day detail view
 

@@ -6,13 +6,15 @@ Per payment: net THB = shares × dps × (1 − withholding) × USD/THB on the pa
 "received" = declared and paid on/before today; everything else is "upcoming"
 (declared but not paid yet, or estimated).
 
-Limitation: uses current holdings for the whole year (no trade history yet), i.e. it
-assumes today's shares were held before each ex-date.
+Shares per payment: those held at the end of the day before the ex-date (from the trade log,
+`held_before`). A payment whose ex-date is still ahead counts the shares held now. Positions
+sold during the year keep the dividends they earned while held. Yield on cost uses the current
+positions only.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -95,16 +97,29 @@ def build_income(
     payments: Sequence[DividendPayment],
     fx: Mapping[date, FxChoice],
     withholding_rate: Decimal,
+    held_before: Callable[[str, date], Decimal] | None = None,
 ) -> IncomeYear:
+    """`holdings` = current positions (cost for yield on cost). `held_before(ticker, d)` = shares
+    held at the end of the day before d; None = assume the current shares were always held."""
     held = {h.ticker: h for h in holdings if h.shares > 0}
+
+    def entitled(p: DividendPayment) -> Decimal:
+        current = held[p.ticker].shares if p.ticker in held else ZERO
+        ex = p.ex_date or p.pay_date
+        if held_before is None or ex > today:
+            return current  # not ex yet: whoever holds it now gets it
+        return held_before(p.ticker, ex)
+
     lines: list[PaymentLine] = []
     for p in sorted(payments, key=lambda p: (p.pay_date, p.ticker)):
-        h = held.get(p.ticker)
-        if h is None or p.pay_date.year != year:
+        if p.pay_date.year != year:
+            continue
+        shares = entitled(p)
+        if shares <= 0:
             continue
         rate = fx.get(p.pay_date)
         amount = (
-            dividend_amount(h.shares, p.dps, withholding_rate, rate.rate)
+            dividend_amount(shares, p.dps, withholding_rate, rate.rate)
             if rate is not None
             else None
         )
@@ -115,7 +130,7 @@ def build_income(
                 ex_date=p.ex_date,
                 pay_date=p.pay_date,
                 dps=p.dps,
-                shares=h.shares,
+                shares=shares,
                 is_estimate=p.is_estimate,
                 status="received" if received else "upcoming",
                 fx=rate,
@@ -144,10 +159,12 @@ def build_income(
     )
 
     per_holding: list[HoldingIncome] = []
-    for ticker, h in held.items():
+    # held now, plus anything sold that paid while it was held
+    for ticker in sorted(held.keys() | {ln.ticker for ln in lines}):
+        h = held.get(ticker)
         mine = [ln for ln in lines if ln.ticker == ticker]
         net_usd = sum((ln.amount.net_usd for ln in mine if ln.amount), ZERO)
-        cost = h.shares * h.avg_cost_usd
+        cost = h.shares * h.avg_cost_usd if h else ZERO
         per_holding.append(
             HoldingIncome(
                 ticker=ticker,
@@ -161,7 +178,10 @@ def build_income(
     per_holding.sort(key=lambda x: (not x.pays_dividend, -x.net_thb, x.ticker))
 
     priced = [ln for ln in lines if ln.amount]
-    total_net_usd = sum((ln.amount.net_usd for ln in priced if ln.amount), ZERO)
+    # yield on what is held now: dividends of positions since sold are not on that cost
+    total_net_usd = sum(
+        (ln.amount.net_usd for ln in priced if ln.amount and ln.ticker in held), ZERO
+    )
     total_cost = sum((h.shares * h.avg_cost_usd for h in held.values()), ZERO)
     net_thb = net(lines)
     return IncomeYear(

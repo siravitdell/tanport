@@ -20,6 +20,7 @@ from app.services.fx import fx_rate_on
 from app.store.events import dividend_pay_events
 from app.store.holdings import list_holdings
 from app.store.settings import get_user_settings
+from app.store.trades import ledger_for
 
 router = APIRouter(prefix="/api/income", tags=["income"])
 
@@ -108,9 +109,16 @@ async def monthly_income(
     holdings = await list_holdings(session, user.id)
     costs = [HoldingCost(h.ticker, h.shares, h.avg_cost_usd) for h in holdings if h.shares > 0]
     settings = await get_user_settings(session, user.id)
+    ledger = await ledger_for(session, user.id)
+    # held now, or at some point this year (or just before it: a December ex-date pays in January)
+    tickers = {c.ticker for c in costs} | {
+        t
+        for t in ledger.tickers
+        if ledger.held_between(t, date(year - 1, 10, 1), date(year, 12, 31))
+    }
 
     events = await dividend_pay_events(
-        session, [c.ticker for c in costs], date(year, 1, 1), date(year, 12, 31)
+        session, sorted(tickers), date(year, 1, 1), date(year, 12, 31)
     )
     payments = [
         DividendPayment(
@@ -136,6 +144,7 @@ async def monthly_income(
         payments=payments,
         fx=fx,
         withholding_rate=settings.withholding_rate,
+        held_before=ledger.held_before,
     )
     return IncomeOut(
         year=year,

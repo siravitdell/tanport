@@ -6,7 +6,14 @@ from typing import Any
 
 import pytest
 
-from app.domain.calendar import CalendarEvent, DayPortfolio, build_calendar, period_change
+from app.domain.calendar import (
+    CalendarEvent,
+    DayPortfolio,
+    build_calendar,
+    concerns_user,
+    period_change,
+)
+from app.domain.trades import ShareLedger, TradeFact
 
 D = Decimal
 TODAY = date(2026, 12, 16)  # Wednesday
@@ -97,3 +104,42 @@ def test_period_change(
     assert result.change_pct == dec(expected_pct)
     assert result.change_thb == dec(expected_thb)
     assert result.trading_days == days
+
+
+def _ledger() -> ShareLedger:
+    # KO: bought 1 Dec, sold all 10 Dec
+    return ShareLedger(
+        [
+            TradeFact("KO", "buy", date(2026, 12, 1), D(5), D(70), D(0), D(33)),
+            TradeFact("KO", "sell", date(2026, 12, 10), D(5), D(70), D(0), D(33)),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("type_", "ticker", "day", "payload", "expected"),
+    [
+        ("macro", None, date(2026, 11, 1), {}, True),  # everyone's
+        ("price_move", "KO", date(2026, 11, 30), {}, False),  # not bought yet
+        ("price_move", "KO", date(2026, 12, 1), {}, True),  # bought that day
+        ("price_move", "KO", date(2026, 12, 10), {}, False),  # sold that day
+        ("ex_dividend", "KO", date(2026, 12, 1), {}, True),  # held on the day (no dividend)
+        ("ex_dividend", "KO", date(2026, 12, 10), {}, True),  # held the day before: paid
+        # paid after the sale, but earned before it: still shown
+        ("dividend_pay", "KO", date(2026, 12, 15), {"ex_date": "2026-12-05"}, True),
+        ("dividend_pay", "KO", date(2026, 12, 15), {"ex_date": "2026-11-20"}, False),
+        (
+            "dividend_pay",
+            "KO",
+            date(2026, 12, 20),
+            {"ex_date": "2026-12-18"},
+            False,
+        ),  # future, not held
+        ("price_move", "V", date(2026, 12, 5), {}, False),  # never held
+    ],
+)
+def test_events_concern_positions_held_then(
+    type_: str, ticker: str | None, day: date, payload: dict[str, Any], expected: bool
+) -> None:
+    event = CalendarEvent(1, type_, ticker, day, None, False, payload)
+    assert concerns_user(event, _ledger(), today=TODAY) is expected

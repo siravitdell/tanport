@@ -13,12 +13,14 @@ Status — never shows 0 % for a day without data:
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
 from app.domain.market import is_trading_day
+from app.domain.trades import ShareLedger
 
 DayStatus = Literal["ok", "no_data", "future", "closed"]
 MAX_RANGE_DAYS = 62
@@ -79,6 +81,27 @@ def period_change(days: Iterable[DayPortfolio]) -> PeriodChange | None:
         return None
     pct = ((factor - 1) * 100).quantize(PCT_QUANT, rounding=ROUND_HALF_UP)
     return PeriodChange(change_pct=pct, change_thb=thb, trading_days=count)
+
+
+def concerns_user(event: CalendarEvent, ledger: ShareLedger, today: date) -> bool:
+    """Is this market event about a position the user held then (or holds, for future dates)?
+
+    Macro events (no ticker) concern everyone. A dividend payment belongs to whoever held the
+    shares before its ex-date, even if they were sold before the pay date.
+    """
+    t = event.ticker
+    if t is None:
+        return True
+    day = event.event_date
+    if event.type == "dividend_pay":
+        raw = event.payload.get("ex_date")
+        with suppress(ValueError):  # a malformed ex_date: fall back to the pay date
+            day = date.fromisoformat(raw) if isinstance(raw, str) else day
+    if day > today:
+        return ledger.shares_on(t, today) > 0
+    if event.type in ("dividend_pay", "ex_dividend"):
+        return ledger.held_before(t, day) > 0 or ledger.shares_on(t, day) > 0
+    return ledger.shares_on(t, day) > 0
 
 
 def _keep(event: CalendarEvent, threshold: Decimal) -> bool:

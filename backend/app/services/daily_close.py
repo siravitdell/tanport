@@ -24,8 +24,8 @@ from app.services.fx import fx_rate_on
 from app.store import portfolio_daily as portfolio_store
 from app.store import prices as price_store
 from app.store.events import EventIn, delete_events, upsert_events
-from app.store.holdings import positions_by_user
 from app.store.models import EventType
+from app.store.trades import ledgers_by_user
 
 BACKFILL_DAYS = 100  # calendar days ≈ 68 trading days: a couple of calendar months + sparklines
 OVERLAP_DAYS = 7
@@ -92,8 +92,14 @@ class DailyCloseService:
 
     async def recompute_portfolios(self, end: date) -> int:
         start = end - timedelta(days=BACKFILL_DAYS)
-        by_user = await positions_by_user(self._session)
-        tickers = {p.ticker for positions in by_user.values() for p in positions}
+        by_user = await ledgers_by_user(self._session)
+        # also tickers sold within the window: they still count on the days they were held
+        tickers = {
+            t
+            for ledger in by_user.values()
+            for t in ledger.tickers
+            if ledger.held_between(t, start, end)
+        }
         prices = await price_store.day_prices(self._session, tickers, start, end)
         dates = {d for per_ticker in prices.values() for d in per_ticker}
 
@@ -105,8 +111,8 @@ class DailyCloseService:
                 log.warning("portfolio.no_fx_rate", trade_date=d.isoformat())
 
         written = 0
-        for user_id, positions in by_user.items():
-            days = portfolio_days(positions, prices, fx, dates)
+        for user_id, ledger in by_user.items():
+            days = portfolio_days(ledger.positions_on, prices, fx, dates)
             written += await portfolio_store.replace_days(self._session, user_id, start, end, days)
         return written
 

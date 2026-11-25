@@ -58,11 +58,40 @@ async def market(session: AsyncSession) -> None:
     )
 
 
-async def _import(client: AsyncClient, csv_text: str) -> None:
+async def _import(client: AsyncClient, csv_text: str, bought: str = "2025-01-02") -> None:
+    """Buys dated `bought` (long before every ex-date here unless a test says otherwise)."""
+    header, *rows = csv_text.strip().split("\n")
+    extra = ",date" if "usd_thb" in header else ",date,usd_thb"
+    values = f",{bought}" if "usd_thb" in header else f",{bought},33"
+    dated = "\n".join([header + extra, *(r + values for r in rows)]) + "\n"
     resp = await client.post(
-        "/api/trades/import", content=csv_text, headers={"content-type": "text/csv"}
+        "/api/trades/import", content=dated, headers={"content-type": "text/csv"}
     )
     assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.usefixtures("market")
+async def test_only_shares_held_before_the_ex_date_count(alice: AsyncClient) -> None:
+    # bought after April's ex-date (2026-04-01): no April dividend; December's is ahead → counts
+    await _import(alice, "ticker,shares,avg_cost_usd\nKO,15,61\n", bought="2026-04-01")
+    body = (await alice.get("/api/income/monthly", params={"year": 2026})).json()
+    assert body["months"][3]["payments"] == []
+    assert [p["ticker"] for p in body["months"][11]["payments"]] == ["KO"]
+
+
+@pytest.mark.usefixtures("market")
+async def test_a_sold_position_keeps_the_dividends_it_earned(alice: AsyncClient) -> None:
+    await _import(alice, "ticker,shares,avg_cost_usd\nKO,15,61\nVOO,2,480\n")
+    sold = "date,side,ticker,shares,price_usd,usd_thb\n2026-06-01,sell,KO,15,70,33\n"
+    resp = await alice.post(
+        "/api/trades/import", content=sold, headers={"content-type": "text/csv"}
+    )
+    assert resp.status_code == 200, resp.text
+    body = (await alice.get("/api/income/monthly", params={"year": 2026})).json()
+    assert [(p["ticker"], p["shares"]) for p in body["months"][3]["payments"]] == [("KO", "15")]
+    assert [p["ticker"] for p in body["months"][11]["payments"]] == ["VOO"]  # KO sold by then
+    ko = next(h for h in body["holdings"] if h["ticker"] == "KO")
+    assert (ko["net_thb"], ko["yield_on_cost_pct"]) == ("229.755", None)  # no cost: not held
 
 
 @pytest.mark.usefixtures("market")

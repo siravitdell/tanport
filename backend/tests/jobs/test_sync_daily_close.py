@@ -13,7 +13,7 @@ from app.jobs.lock import JobLock
 from app.providers.base import DailyBar, FxRate, ProviderResponseError
 from app.store import fx as fx_store
 from app.store.db import SessionFactory
-from app.store.models import Event, Holding, PortfolioDaily, Price, User, UserSettings
+from app.store.models import Event, Holding, PortfolioDaily, Price, Trade, User, UserSettings
 from tests.fakes import FakePriceHistoryProvider
 
 D = Decimal
@@ -46,6 +46,19 @@ async def users(session: AsyncSession) -> tuple[int, int]:
             Holding(user_id=a.id, ticker="VOO", shares=D(10), avg_cost_usd=D(1)),
             Holding(user_id=a.id, ticker="KO", shares=D(20), avg_cost_usd=D(1)),
             Holding(user_id=b.id, ticker="KO", shares=D(5), avg_cost_usd=D(1)),
+            # positions over time come from the trades (holdings = what is held now)
+            *[
+                Trade(
+                    user_id=uid,
+                    ticker=t,
+                    side="buy",
+                    trade_date=date(2026, 1, 2),
+                    shares=D(n),
+                    price_usd=D(1),
+                    usd_thb=D(33),
+                )
+                for uid, t, n in [(a.id, "VOO", 10), (a.id, "KO", 20), (b.id, "KO", 5)]
+            ],
         ]
     )
     await fx_store.upsert_rates(

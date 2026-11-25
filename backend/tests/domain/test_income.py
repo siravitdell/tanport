@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from app.domain.fx import FxChoice
 from app.domain.income import DividendPayment, HoldingCost, build_income
 
@@ -105,3 +107,47 @@ def test_missing_fx_is_reported_not_zeroed() -> None:
     assert inc.net_thb == 0
     assert inc.missing_fx == (date(2026, 4, 1), date(2026, 12, 15), date(2026, 12, 31))
     assert all(ln.amount is None for m in inc.months for ln in m.lines)
+
+
+@pytest.mark.parametrize(
+    ("held", "april_shares", "december_shares"),
+    [
+        # held since long ago: every payment, at the shares held then
+        ({"KO": D(10)}, D(10), D(15)),  # December's ex-date is ahead: today's 15 shares
+        # bought on April's ex-date (2026-03-13) itself: too late for April
+        ({}, None, D(15)),
+        # more shares back then than now (some sold since)
+        ({"KO": D(40)}, D(40), D(15)),
+    ],
+)
+def test_shares_held_before_each_ex_date(
+    held: dict[str, Decimal], april_shares: Decimal | None, december_shares: Decimal
+) -> None:
+    inc = build_income(
+        2026,
+        today=TODAY,
+        holdings=HOLDINGS,
+        payments=PAYMENTS,
+        fx=FX,
+        withholding_rate=D("0.15"),
+        held_before=lambda ticker, _day: held.get(ticker, D(0)),
+    )
+    april = [ln.shares for ln in inc.months[3].lines]
+    assert april == ([april_shares] if april_shares is not None else [])
+    assert [ln.shares for ln in inc.months[11].lines if ln.ticker == "KO"] == [december_shares]
+
+
+def test_a_position_sold_this_year_keeps_its_dividends() -> None:
+    inc = build_income(
+        2026,
+        today=TODAY,
+        holdings=[HoldingCost("VOO", D("2"), D("480"))],  # KO sold
+        payments=PAYMENTS,
+        fx=FX,
+        withholding_rate=D("0.15"),
+        held_before=lambda ticker, _day: D(15) if ticker == "KO" else D(2),
+    )
+    assert [ln.ticker for ln in inc.months[3].lines] == ["KO"]
+    assert [ln.ticker for ln in inc.months[11].lines] == ["VOO"]  # KO not held: ex-date ahead
+    ko = next(h for h in inc.holdings if h.ticker == "KO")
+    assert (ko.net_thb, ko.yield_on_cost_pct) == (D("229.755"), None)

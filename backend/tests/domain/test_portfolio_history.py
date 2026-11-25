@@ -46,7 +46,7 @@ POSITIONS = [Position("VOO", D("10")), Position("KO", D("20"))]
 
 
 def test_daily_values() -> None:
-    days = portfolio_days(POSITIONS, PRICES, FX, [D14, D15, D16])
+    days = portfolio_days(lambda _: POSITIONS, PRICES, FX, [D14, D15, D16])
     # 14th: no FX rate and no previous closes → no entry
     assert [d.trade_date for d in days] == [D15, D16]
 
@@ -64,17 +64,27 @@ def test_daily_values() -> None:
 def test_split_does_not_distort_history() -> None:
     """After a 10:1 split the stored change % is split-adjusted, so the day is a real +1 %."""
     prices = {"NVDA": {D16: DayPrice(D("101"), D("1"))}}  # previous raw close was 1010
-    (day,) = portfolio_days([Position("NVDA", D("10"))], prices, FX, [D16])
+    (day,) = portfolio_days(lambda _: [Position("NVDA", D("10"))], prices, FX, [D16])
     assert day.change.change_pct == D("1")
 
 
 def test_missing_price_is_excluded_not_zero() -> None:
     prices = {"VOO": PRICES["VOO"]}  # no KO data at all
-    days = portfolio_days(POSITIONS, prices, FX, [D16])
+    days = portfolio_days(lambda _: POSITIONS, prices, FX, [D16])
     assert days[0].change.excluded == ("KO",)
     assert days[0].change.change_pct == D("-3")
 
 
 @pytest.mark.parametrize("positions", [[], [Position("VOO", D("0"))]])
 def test_nothing_held(positions: list[Position]) -> None:
-    assert portfolio_days(positions, PRICES, FX, [D15, D16]) == []
+    assert portfolio_days(lambda _: positions, PRICES, FX, [D15, D16]) == []
+
+
+def test_positions_change_with_the_trade_log() -> None:
+    """Bought on the 16th: the 15th (which has prices and a rate) has no portfolio yet."""
+    from app.domain.trades import ShareLedger, TradeFact
+
+    ledger = ShareLedger([TradeFact("VOO", "buy", D16, D(10), D(100), D(0), D(33))])
+    days = portfolio_days(ledger.positions_on, PRICES, FX, [D14, D15, D16])
+    assert [d.trade_date for d in days] == [D16]
+    assert days[0].change.value_usd == D("994.25")  # VOO only, 10 shares

@@ -10,7 +10,6 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.portfolio import Position
 from app.store.models import Holding
 
 
@@ -38,16 +37,3 @@ async def distinct_tickers(session: AsyncSession) -> list[str]:
         select(Holding.ticker).where(Holding.shares > 0).distinct().order_by(Holding.ticker)
     )
     return list(result.scalars())
-
-
-async def positions_by_user(session: AsyncSession) -> dict[int, list[Position]]:
-    """Every user's held positions (shares > 0)."""
-    result = await session.execute(
-        select(Holding.user_id, Holding.ticker, Holding.shares)
-        .where(Holding.shares > 0)
-        .order_by(Holding.user_id, Holding.ticker)
-    )
-    out: dict[int, list[Position]] = {}
-    for user_id, ticker, shares in result.all():
-        out.setdefault(user_id, []).append(Position(ticker=ticker, shares=shares))
-    return out

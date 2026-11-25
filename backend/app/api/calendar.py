@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -16,13 +16,14 @@ from app.domain.calendar import (
     DayPortfolio,
     DayStatus,
     build_calendar,
+    concerns_user,
     period_change,
 )
 from app.domain.market import NEW_YORK
 from app.store.events import events_for
-from app.store.holdings import list_holdings
 from app.store.portfolio_daily import days_between
 from app.store.settings import get_user_settings
+from app.store.trades import ledger_for
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
@@ -76,32 +77,38 @@ async def get_calendar(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"'to' must be on/after 'from' and the range at most {MAX_RANGE_DAYS} days",
         )
-    holdings = await list_holdings(session, user.id)
-    tickers = [h.ticker for h in holdings if h.shares > 0]
+    today = now.astimezone(NEW_YORK).date()
+    ledger = await ledger_for(session, user.id)
+    # anything held in (or shortly before) the range: a dividend paid in it may stem from earlier
+    tickers = sorted(
+        t
+        for t in ledger.tickers
+        if ledger.held_between(t, from_ - timedelta(days=90), max(to, today))
+    )
     settings = await get_user_settings(session, user.id)
     rows = await days_between(session, user.id, from_, to)
-    events = await events_for(session, tickers, from_, to)
+    events = [
+        CalendarEvent(
+            id=e.id,
+            type=e.type,
+            ticker=e.ticker,
+            event_date=e.event_date,
+            event_time_utc=e.event_time_utc,
+            is_estimate=e.is_estimate,
+            payload=e.payload,
+        )
+        for e in await events_for(session, tickers, from_, to)
+    ]
 
     days = build_calendar(
         from_,
         to,
-        today=now.astimezone(NEW_YORK).date(),
+        today=today,
         portfolio={
             d: DayPortfolio(value_thb=r.value_thb, change_pct=r.change_pct, change_thb=r.change_thb)
             for d, r in rows.items()
         },
-        events=[
-            CalendarEvent(
-                id=e.id,
-                type=e.type,
-                ticker=e.ticker,
-                event_date=e.event_date,
-                event_time_utc=e.event_time_utc,
-                is_estimate=e.is_estimate,
-                payload=e.payload,
-            )
-            for e in events
-        ],
+        events=[e for e in events if concerns_user(e, ledger, today)],
         big_move_threshold=settings.big_move_threshold_pct,
     )
     period = period_change(d.portfolio for d in days if d.portfolio)

@@ -9,7 +9,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.trades import Book, TradeFact, replay
+from app.domain.trades import Book, ShareLedger, TradeFact, replay
 from app.store.models import Holding, Trade, User
 
 COST_QUANT = Decimal("0.000001")  # Numeric(20, 6)
@@ -76,6 +76,21 @@ async def add_trades(
 async def delete_trade(session: AsyncSession, trade: Trade) -> None:
     await session.delete(trade)
     await session.flush()
+
+
+async def ledger_for(session: AsyncSession, user_id: int) -> ShareLedger:
+    return ShareLedger(to_fact(t) for t in await list_trades(session, user_id))
+
+
+async def ledgers_by_user(session: AsyncSession) -> dict[int, ShareLedger]:
+    """Every user with trades → shares held per day (for the portfolio history job)."""
+    result = await session.execute(
+        select(Trade).order_by(Trade.user_id, Trade.trade_date, Trade.id)
+    )
+    facts: dict[int, list[TradeFact]] = {}
+    for t in result.scalars():
+        facts.setdefault(t.user_id, []).append(to_fact(t))
+    return {user_id: ShareLedger(f) for user_id, f in facts.items()}
 
 
 async def books_for(session: AsyncSession, user_id: int) -> dict[str, Book]:

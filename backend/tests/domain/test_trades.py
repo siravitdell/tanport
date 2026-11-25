@@ -5,7 +5,15 @@ from decimal import Decimal
 
 import pytest
 
-from app.domain.trades import Book, OversellError, TradeFact, portfolio_view, replay
+from app.domain.portfolio import Position
+from app.domain.trades import (
+    Book,
+    OversellError,
+    ShareLedger,
+    TradeFact,
+    portfolio_view,
+    replay,
+)
 
 D = Decimal
 
@@ -99,6 +107,52 @@ def test_same_day_buys_count_before_sells_whatever_the_entry_order() -> None:
 def test_tickers_are_independent() -> None:
     books = replay([buy(1, "1", "10", "30", t="KO"), buy(1, "2", "20", "30", t="V")])
     assert {t: b.shares for t, b in books.items()} == {"KO": D(1), "V": D(2)}
+
+
+# --- shares held on a date ---
+
+
+def ledger() -> ShareLedger:
+    return ShareLedger(
+        [
+            buy(3, "10", "1", "30"),
+            buy(5, "5", "1", "30"),
+            sell(5, "3", "1", "30"),  # same day: end of the 5th = 12
+            sell(9, "12", "1", "30"),  # all gone
+            buy(2, "1", "1", "30", t="KO"),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("day", "shares"),
+    [(2, "0"), (3, "10"), (4, "10"), (5, "12"), (8, "12"), (9, "0"), (30, "0")],
+)
+def test_shares_at_the_end_of_each_day(day: int, shares: str) -> None:
+    assert ledger().shares_on("VOO", date(2026, 11, day)) == D(shares)
+
+
+def test_dividend_needs_the_shares_before_the_ex_date() -> None:
+    lg = ledger()
+    assert lg.held_before("VOO", date(2026, 11, 3)) == 0  # bought on the ex-date: no dividend
+    assert lg.held_before("VOO", date(2026, 11, 4)) == D(10)
+    assert lg.held_before("VOO", date(2026, 11, 9)) == D(12)  # sold on the ex-date: still paid
+
+
+def test_positions_and_ranges() -> None:
+    lg = ledger()
+    assert lg.tickers == {"VOO", "KO"}
+    assert lg.positions_on(date(2026, 11, 4)) == [Position("KO", D(1)), Position("VOO", D(10))]
+    assert lg.positions_on(date(2026, 11, 10)) == [Position("KO", D(1))]
+    assert lg.held_between("VOO", date(2026, 11, 6), date(2026, 11, 30))  # held 6th–8th
+    assert not lg.held_between("VOO", date(2026, 11, 9), date(2026, 11, 30))
+    assert not lg.held_between("VOO", date(2026, 10, 1), date(2026, 11, 2))
+    assert lg.shares_on("NEVER", date(2026, 11, 5)) == 0
+
+
+def test_ledger_refuses_an_oversell() -> None:
+    with pytest.raises(OversellError):
+        ShareLedger([sell(1, "1", "1", "30")])
 
 
 # --- portfolio view ---

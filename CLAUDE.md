@@ -56,6 +56,7 @@ docker-compose.yml
   - `withholding_rate` default **0.15** (US–Thailand treaty with W-8BEN). Configurable per user; 0.30 if no W-8BEN.
   - Use the FX rate of the **pay date** (fallback: latest available rate). Show which rate was used.
 - **Ex-dividend date ≠ pay date.** Shares must be held *before* the ex-date. Show both as separate events.
+- **Positions over time come from the trade log** (`ShareLedger`): a dividend counts the shares held at the end of the day before its ex-date (if the ex-date is still ahead: the shares held now); a position sold later keeps the dividends it earned. Portfolio history uses the shares held at the end of each day; calendar events show only for positions held on that day.
 - For projected (not yet declared) dividends, estimate from the last 4 payments and mark `is_estimate = true`.
 - **Time:** store everything in UTC; display in `Asia/Bangkok`. Earnings "before open / after close" must be converted to Thai time.
 - Some holdings pay no dividend (e.g. AMZN) — handle gracefully.

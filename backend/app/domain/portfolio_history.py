@@ -4,13 +4,13 @@ Uses each day's stored close and change %. The previous close is implied from th
 (close / (1 + change/100)), which stays correct across splits because change % is
 split-adjusted.
 
-Limitation: positions are the user's *current* holdings (no trade history yet), so past
-days show "today's portfolio, priced at that day's closes".
+Positions are what the user held at the end of each day (from the trade log). A day's change
+is that day's move of those shares: money moved in or out by trading does not count as gain.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -41,16 +41,19 @@ def implied_prev_close(price: DayPrice) -> Decimal | None:
 
 
 def portfolio_days(
-    positions: Sequence[Position],
+    positions: Callable[[date], Sequence[Position]],
     prices: Mapping[str, Mapping[date, DayPrice]],
     fx: Mapping[date, FxChoice],
     dates: Iterable[date],
 ) -> list[PortfolioDay]:
-    """One entry per date that has an FX rate and at least one priced holding."""
-    held = [p for p in positions if p.shares > 0]
+    """One entry per date that has an FX rate and at least one priced holding.
+
+    `positions(d)` = shares held at the end of day d.
+    """
     out: list[PortfolioDay] = []
     for d in sorted(set(dates)):
         rate = fx.get(d)
+        held = [p for p in positions(d) if p.shares > 0]
         if rate is None or not held:
             continue
         days: list[HoldingDay] = []

@@ -14,12 +14,14 @@ which add up to value THB − cost THB.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from app.domain.errors import DomainError
+from app.domain.portfolio import Position
 
 HUNDRED = Decimal(100)
 ZERO = Decimal(0)
@@ -111,6 +113,58 @@ def replay(trades: Iterable[TradeFact]) -> dict[str, Book]:
             book.cost_usd -= basis_usd
             book.cost_thb -= basis_thb
     return books
+
+
+# --- shares held on a date ---
+
+
+class ShareLedger:
+    """Shares of each ticker held at the end of each day, from a trade log.
+
+    A day's buys and sales all count by the end of that day. To receive a dividend the shares
+    must be held before the ex-date, i.e. at the end of the previous day: `held_before`.
+    """
+
+    def __init__(self, trades: Iterable[TradeFact]) -> None:
+        self._steps: dict[str, tuple[list[date], list[Decimal]]] = {}
+        held: dict[str, Decimal] = {}
+        for t in sorted(trades, key=_order):
+            now = held.get(t.ticker, ZERO) + (t.shares if t.side == "buy" else -t.shares)
+            if now < 0:
+                raise OversellError(t, held.get(t.ticker, ZERO))
+            held[t.ticker] = now
+            days, shares = self._steps.setdefault(t.ticker, ([], []))
+            if days and days[-1] == t.trade_date:
+                shares[-1] = now  # end of that day
+            else:
+                days.append(t.trade_date)
+                shares.append(now)
+
+    @property
+    def tickers(self) -> set[str]:
+        """Every ticker ever traded."""
+        return set(self._steps)
+
+    def shares_on(self, ticker: str, day: date) -> Decimal:
+        steps = self._steps.get(ticker)
+        if steps is None:
+            return ZERO
+        days, shares = steps
+        i = bisect_right(days, day)
+        return shares[i - 1] if i else ZERO
+
+    def held_before(self, ticker: str, day: date) -> Decimal:
+        return self.shares_on(ticker, day - timedelta(days=1))
+
+    def positions_on(self, day: date) -> list[Position]:
+        return [Position(t, s) for t in sorted(self._steps) if (s := self.shares_on(t, day)) > 0]
+
+    def held_between(self, ticker: str, start: date, end: date) -> bool:
+        """Any shares at the end of some day in [start, end]."""
+        if self.shares_on(ticker, start) > 0:
+            return True
+        days, shares = self._steps.get(ticker, ([], []))
+        return any(start <= d <= end and s > 0 for d, s in zip(days, shares, strict=True))
 
 
 # --- portfolio view ---
