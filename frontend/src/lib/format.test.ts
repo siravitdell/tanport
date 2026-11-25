@@ -11,6 +11,9 @@ import {
   formatThb,
   formatThbSigned,
   formatUsd,
+  isDecimal,
+  mulDecimals,
+  negate,
   shiftDecimal,
 } from "./format.ts";
 
@@ -89,6 +92,25 @@ describe("exact decimal arithmetic", () => {
     assert.equal(addDecimals(["-1", "0.5"]), "-0.5");
     assert.equal(addDecimals([]), "0");
     assert.equal(addDecimals(["12"]), "12");
+  });
+
+  it("mulDecimals", () => {
+    assert.equal(mulDecimals("1.5", "585.40"), "878.100");
+    assert.equal(mulDecimals("0.1", "0.2"), "0.02"); // 0.020000000000000004 as floats
+    assert.equal(mulDecimals("-2", "3.5"), "-7.0");
+    assert.equal(mulDecimals("-2", "-3"), "6");
+    assert.equal(mulDecimals("0", "-3"), "0");
+    // a trade: 1.5 × 585.40 + 0.9 fee, at 33.20
+    assert.equal(formatDecimal(mulDecimals(addDecimals([mulDecimals("1.5", "585.40"), "0.9"]), "33.20"), 2), "29,182.80");
+  });
+
+  it("negate and isDecimal", () => {
+    assert.equal(negate("1.5"), "-1.5");
+    assert.equal(negate("-1.5"), "1.5");
+    assert.equal(negate("+2"), "-2");
+    assert.equal(addDecimals(["10", negate("0.25")]), "9.75");
+    assert.ok(isDecimal("12.5") && isDecimal(" 3 ") && isDecimal("-0.1"));
+    assert.ok(!isDecimal("") && !isDecimal("1e3") && !isDecimal("1,000") && !isDecimal(".5"));
   });
 
   it("shiftDecimal", () => {

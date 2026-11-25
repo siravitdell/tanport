@@ -151,17 +151,107 @@ export interface SettingsResponse {
   updated_at: IsoDateTime;
 }
 
+// --- trades & portfolio (backend/app/api/trades.py, portfolio.py) ---
+
+export type Side = "buy" | "sell";
+
+export interface Trade {
+  id: number;
+  side: Side;
+  ticker: string;
+  trade_date: IsoDate;
+  shares: DecimalString;
+  price_usd: DecimalString;
+  fee_usd: DecimalString;
+  usd_thb: DecimalString;
+  cash_usd: DecimalString; // + money in (sell), − money out (buy)
+  cash_thb: DecimalString;
+  created_at: IsoDateTime;
+}
+
+export interface TradeBody {
+  side: Side;
+  ticker: string;
+  trade_date: IsoDate;
+  shares: DecimalString;
+  price_usd: DecimalString;
+  fee_usd: DecimalString;
+  usd_thb: DecimalString | null; // null: the BOT rate of trade_date
+}
+
+export interface FxResponse {
+  usd_thb: DecimalString;
+  rate_date: IsoDate;
+  is_fallback: boolean;
+}
+
+export interface Position {
+  ticker: string;
+  shares: DecimalString;
+  avg_cost_usd: DecimalString;
+  avg_cost_thb: DecimalString;
+  cost_usd: DecimalString;
+  cost_thb: DecimalString;
+  price_usd: DecimalString | null;
+  price_source: "quote" | "close" | null;
+  value_usd: DecimalString | null;
+  value_thb: DecimalString | null;
+  unrealized_thb: DecimalString | null;
+  unrealized_pct: DecimalString | null;
+  price_pl_thb: DecimalString | null;
+  fx_pl_thb: DecimalString | null;
+  weight_pct: DecimalString | null;
+  trades: number;
+}
+
+export interface PortfolioResponse {
+  fx: FxResponse;
+  positions: Position[];
+  totals: {
+    value_usd: DecimalString;
+    value_thb: DecimalString;
+    cost_usd: DecimalString;
+    cost_thb: DecimalString;
+    unrealized_thb: DecimalString;
+    unrealized_pct: DecimalString | null;
+    price_pl_thb: DecimalString;
+    fx_pl_thb: DecimalString;
+    realized_thb: DecimalString;
+    realized_usd: DecimalString;
+    trades: number;
+    unpriced: string[];
+  } | null;
+}
+
+export interface CsvRowError {
+  line: number;
+  column: string | null;
+  message: string;
+}
+
 // --- errors ---
 
 export class ApiError extends Error {
   readonly status: number;
   readonly retryAfterS: number | null;
+  /** FastAPI's `detail` as sent (a string, a validation list, or e.g. {message, errors} for CSV). */
+  readonly detail: unknown;
 
-  constructor(status: number, message: string, retryAfterS: number | null = null) {
+  constructor(status: number, message: string, retryAfterS: number | null = null, detail: unknown = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.retryAfterS = retryAfterS;
+    this.detail = detail;
+  }
+
+  /** Per-row problems of a rejected CSV import, if that is what this error carries. */
+  get csvErrors(): CsvRowError[] {
+    const d = this.detail;
+    if (d && typeof d === "object" && "errors" in d && Array.isArray((d as { errors: unknown }).errors)) {
+      return (d as { errors: CsvRowError[] }).errors;
+    }
+    return [];
   }
 }
 
@@ -170,6 +260,9 @@ function detailMessage(body: unknown, fallback: string): string {
   if (body && typeof body === "object" && "detail" in body) {
     const detail = (body as { detail: unknown }).detail;
     if (typeof detail === "string") return detail;
+    if (detail && typeof detail === "object" && "message" in detail) {
+      return String((detail as { message: unknown }).message);
+    }
     if (Array.isArray(detail)) {
       const msgs = detail
         .map((d) => (d && typeof d === "object" && "msg" in d ? String(d.msg) : null))
@@ -195,6 +288,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       res.status,
       detailMessage(body, `${res.status} ${res.statusText}`),
       Number.isFinite(retry) && retry > 0 ? retry : null,
+      body && typeof body === "object" && "detail" in body ? (body as { detail: unknown }).detail : null,
     );
   }
   return body as T;
@@ -212,4 +306,17 @@ export const api = {
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
 
   quotes: () => request<QuotesResponse>("/api/quotes"),
+
+  createTrade: (body: TradeBody) => request<Trade>("/api/trades", json(body)),
+  deleteTrade: (id: number) => request<void>(`/api/trades/${id}`, { method: "DELETE" }),
+  importTrades: (csv: string) =>
+    request<{ imported: number }>("/api/trades/import", {
+      method: "POST",
+      body: csv,
+      headers: { "Content-Type": "text/csv" },
+    }),
+  fx: (date: IsoDate) => request<FxResponse>(`/api/fx?date=${date}`),
+
+  updateSettings: (body: Omit<SettingsResponse, "updated_at">) =>
+    request<SettingsResponse>("/api/settings", { method: "PUT", body: JSON.stringify(body) }),
 };

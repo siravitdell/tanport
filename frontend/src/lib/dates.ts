@@ -53,6 +53,18 @@ export function formatTime(isoDateTime: string): string {
   return timeFmt.format(new Date(isoDateTime));
 }
 
+const dateFmt = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: "UTC",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/** "2026-11-10" → "10 พ.ย. 2026" */
+export function formatDate(isoDate: string): string {
+  return dateFmt.format(new Date(`${isoDate}T00:00:00Z`));
+}
+
 /** "2026-11-24" → "24 พ.ย." */
 export function formatShortDate(isoDate: string): string {
   return shortDateFmt.format(new Date(`${isoDate}T00:00:00Z`));

@@ -5,6 +5,7 @@ import { sparkPoints } from "@/lib/calendar";
 import { formatShortDate } from "@/lib/dates";
 import { type Direction, arrow, direction, formatDecimal, formatPct, formatUsd } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
+import { EmptyPortfolio } from "@/components/EmptyPortfolio";
 
 import { DIR_TEXT } from "./styles";
 
@@ -25,7 +26,7 @@ export function PriceStrip({ quotes }: { quotes: QuotesResponse | undefined }) {
       {!quotes ? (
         <p className="py-6 text-center text-sm text-muted">กำลังโหลด…</p>
       ) : holdings.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted">ยังไม่มีหุ้นในพอร์ต</p>
+        <p className="py-6 text-center text-sm text-muted"><EmptyPortfolio /></p>
       ) : (
         <div className="grid auto-cols-[minmax(128px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-1">
           {holdings.map((h) => (

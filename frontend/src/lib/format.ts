@@ -78,6 +78,25 @@ export function addDecimals(values: string[]): string {
   return fromScaled(total, scale);
 }
 
+/** True for a plain decimal string ("12", "-0.5", "1.25"): what the API and the forms accept. */
+export function isDecimal(value: string): boolean {
+  return DECIMAL_RE.test(value.trim());
+}
+
+/** Exact product: mulDecimals("1.5", "585.40") → "878.100". */
+export function mulDecimals(a: string, b: string): string {
+  const x = parts(a);
+  const y = parts(b);
+  const n = BigInt(x.digits) * BigInt(y.digits);
+  return fromScaled(x.negative !== y.negative ? -n : n, x.scale + y.scale);
+}
+
+/** "-" in front of a decimal string, the sign of "-x" flipped. */
+export function negate(value: string): string {
+  const v = value.trim();
+  return v.startsWith("-") ? v.slice(1) : v.startsWith("+") ? `-${v.slice(1)}` : `-${v}`;
+}
+
 /** Exact multiply by 10^places: shiftDecimal("0.15", 2) → "15.00" (a rate as a percent). */
 export function shiftDecimal(value: string, places: number): string {
   const p = parts(value);

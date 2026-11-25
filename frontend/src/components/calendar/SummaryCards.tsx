@@ -1,3 +1,4 @@
+import { EmptyPortfolio } from "@/components/EmptyPortfolio";
 import type { CalendarResponse, IncomeResponse, QuotesResponse } from "@/lib/api";
 import { formatShortDate, formatShortMonth } from "@/lib/dates";
 import {
@@ -67,7 +68,7 @@ function PortfolioCard({ quotes }: { quotes: QuotesResponse | undefined }) {
           <p className="mt-3 text-3xl font-semibold text-hero-muted">{quotes ? "—" : "…"}</p>
           {quotes && (
             <p className="mt-2 text-sm text-hero-muted">
-              {quotes.holdings.length === 0 ? "ยังไม่มีหุ้นในพอร์ต" : "ยังไม่มีราคา รอดึงราคารอบถัดไป"}
+              {quotes.holdings.length === 0 ? <EmptyPortfolio /> : "ยังไม่มีราคา รอดึงราคารอบถัดไป"}
             </p>
           )}
         </>

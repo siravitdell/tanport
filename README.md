@@ -184,7 +184,8 @@ frontend/
   src/
     app/         routes: login/, (app)/ = pages that need a session (calendar, income)
     components/  header, theme toggle, auth provider, calendar/ (cards, prices strip, month grid,
-                 day panel), income/ (cards, monthly chart, per-holding table)
+                 day panel), income/ (cards, monthly chart, per-holding table),
+                 portfolio/ (trade form, CSV import, holdings, history), settings/
     lib/         typed API client, string-based number formatting, month grid / event chips,
                  income bars (+ *.test.ts), theme
     proxy.ts     no session cookie → /login
@@ -238,6 +239,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] Dividends (declared + estimated) and `/api/income/monthly`
 - [x] Scheduled worker
 - [x] Web UI: login, calendar month view, prices strip, income chart, light/dark themes
+- [x] Trade log (buy/sell, average cost, realized/unrealized P/L split into price and FX), portfolio page, settings page
 
 **Phase 2**: earnings and news sync, LLM news summaries with an importance score, day detail view
 

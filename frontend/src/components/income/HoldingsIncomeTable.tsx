@@ -1,3 +1,4 @@
+import { EmptyPortfolio } from "@/components/EmptyPortfolio";
 import type { IncomeResponse } from "@/lib/api";
 import { formatShortMonth } from "@/lib/dates";
 import { formatDecimal, formatThb } from "@/lib/format";
@@ -27,7 +28,7 @@ export function HoldingsIncomeTable({ income }: { income: IncomeResponse }) {
         ปันผลรายหุ้น
       </h2>
       {rows.length === 0 ? (
-        <p className="mt-6 text-sm text-muted">ยังไม่มีหุ้นในพอร์ต</p>
+        <p className="mt-6 text-sm text-muted"><EmptyPortfolio /></p>
       ) : (
         <div className="mt-4">
           <table className="w-full text-left">

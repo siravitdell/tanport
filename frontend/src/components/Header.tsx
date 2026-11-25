@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { useUser } from "@/components/AuthProvider";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { type QuotesResponse, api } from "@/lib/api";
+import type { QuotesResponse } from "@/lib/api";
 import { formatShortDate, formatTime } from "@/lib/dates";
 import { formatDecimal } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
@@ -15,24 +14,15 @@ import { useApi } from "@/lib/use-api";
 const NAV: Array<{ href: string; label: string; disabled?: boolean }> = [
   { href: "/", label: "ปฏิทิน" },
   { href: "/income", label: "รายได้ปันผล" },
+  { href: "/portfolio", label: "พอร์ต" },
   { href: "/digest", label: "LINE digest", disabled: true }, // Phase 3
 ];
 
 export function Header() {
   const pathname = usePathname();
-  const router = useRouter();
   const user = useUser();
   const { data: quotes } = useApi<QuotesResponse>("/api/quotes");
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  async function logout() {
-    setLoggingOut(true);
-    try {
-      await api.logout();
-    } finally {
-      router.replace("/login");
-    }
-  }
+  const onSettings = pathname.startsWith("/settings");
 
   return (
     <header className="border-b border-line bg-surface">
@@ -80,15 +70,17 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           <FxNote quotes={quotes} />
-          <button
-            type="button"
-            onClick={logout}
-            disabled={loggingOut}
-            title={user?.email}
-            className="whitespace-nowrap rounded-xl px-3 py-2 text-sm text-muted hover:bg-surface-2 hover:text-ink disabled:opacity-60"
+          <Link
+            href="/settings"
+            aria-label="ตั้งค่า"
+            aria-current={onSettings ? "page" : undefined}
+            title={user ? `ตั้งค่า · ${user.email}` : "ตั้งค่า"}
+            className={`grid size-10 place-items-center rounded-xl border ${
+              onSettings ? "border-ink bg-surface-2 text-ink" : "border-line-strong bg-surface text-ink hover:bg-surface-2"
+            }`}
           >
-            ออกจากระบบ
-          </button>
+            <GearIcon />
+          </Link>
           <ThemeToggle />
         </div>
       </div>
@@ -107,4 +99,16 @@ function FxNote({ quotes }: { quotes: QuotesResponse | undefined }) {
   }
   if (!parts.length) return null;
   return <p className="num hidden text-sm text-muted lg:block">{parts.join(" · ")}</p>;
+}
+
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <circle cx="12" cy="12" r="3" />
+      <path
+        d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
