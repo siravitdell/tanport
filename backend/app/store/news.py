@@ -58,6 +58,47 @@ async def insert_news(session: AsyncSession, items: Sequence[NewsItem], provider
     return len((await session.execute(stmt)).all())
 
 
+async def news_between(
+    session: AsyncSession,
+    tickers: Sequence[str],
+    start: datetime,
+    end: datetime,
+    per_ticker: int,
+) -> tuple[dict[str, list[News]], dict[str, int]]:
+    """News published in [start, end) for the tickers: the top `per_ticker` of each (most
+    important first once scored, then newest) and each ticker's total count."""
+    if not tickers:
+        return {}, {}
+    window = (
+        func.row_number()
+        .over(
+            partition_by=News.ticker,
+            order_by=(News.importance.desc().nulls_last(), News.published_at.desc(), News.id),
+        )
+        .label("rank")
+    )
+    ranked = (
+        select(News.id, window)
+        .where(News.ticker.in_(tickers), News.published_at >= start, News.published_at < end)
+        .subquery()
+    )
+    rows = await session.execute(
+        select(News, ranked.c.rank)
+        .join(ranked, ranked.c.id == News.id)
+        .where(ranked.c.rank <= per_ticker)
+        .order_by(News.ticker, ranked.c.rank)
+    )
+    items: dict[str, list[News]] = {}
+    for news, _rank in rows.all():
+        items.setdefault(news.ticker, []).append(news)
+    counts = await session.execute(
+        select(News.ticker, func.count())
+        .where(News.ticker.in_(tickers), News.published_at >= start, News.published_at < end)
+        .group_by(News.ticker)
+    )
+    return items, {t: n for t, n in counts.all()}
+
+
 async def prune_news(session: AsyncSession, before: datetime) -> int:
     result = await session.execute(
         delete(News).where(News.published_at < before).returning(News.id)

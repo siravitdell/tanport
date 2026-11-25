@@ -105,7 +105,7 @@ Run exactly one worker process. Each job takes a Redis lock so an overlapping ru
 | sync_dividends | daily 06:00 | declared + estimated dividends for all holdings |
 | sync_earnings | daily 06:00 | next 90 days of earnings |
 | sync_macro | daily 06:00 | FOMC, CPI, NFP |
-| sync_news | every 30 min | fetch → dedupe by URL & near-duplicate headline → LLM summary + importance |
+| sync_news | every 30 min | fetch → dedupe by URL & near-duplicate headline (LLM summary + importance: Phase 4) |
 | send_digest | daily 07:00 | LINE message: today/tonight events + top news |
 
 All jobs must be idempotent and safe to re-run.
@@ -133,7 +133,7 @@ All endpoints except `/api/health` and `/api/auth/{register,login}` require a lo
   - "Prices today" strip: one card per holding — price, change %, weight, 14-trading-day sparkline.
   - Each day cell: portfolio change % (top right), up to 3 event chips, "+N more".
   - Filters: Price · Dividends · Earnings · News · Macro.
-  - Only news with importance ≥ 4 shown on the grid.
+  - Only news with importance ≥ 4 shown on the grid (none until news is scored, Phase 4).
   - Up = green + ▲ + "+", down = red + ▼ + "−" (never color alone).
 - **Day detail panel:** portfolio change for the day, all holdings sorted by |change|, all events + summarised news, links to sources.
 - **Income:** bar chart of monthly net THB (actual vs estimated), yearly total, yield on cost per holding.
@@ -173,8 +173,9 @@ Default DCA split for new users: VOO 70 / QQQM 20 / SCHD 10.
 
 ## Milestones
 1. **Phase 1:** docker-compose, migrations, holdings CRUD + CSV import, quotes + daily closes, portfolio daily change, dividend sync, FX, monthly calendar with price %, prices strip, income chart.
-2. **Phase 2:** earnings + news sync, LLM summary/importance, big-move events, day detail view.
+2. **Phase 2:** earnings + news sync (de-duplicated, no LLM yet), big-move events, day detail view (raw headlines with links until news is scored).
 3. **Phase 3:** LINE digest, macro events, projection page, polish.
+4. **Phase 4 (last):** LLM news summary + importance; then news chips on the grid (importance ≥ 4), "likely cause" news picked by importance, and top news in the LINE digest.
 
 Finish and verify one phase before starting the next.
 

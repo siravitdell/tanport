@@ -226,6 +226,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 | `GET` | `/api/quotes` | market status, FX used, portfolio value/change, per-holding price and weight |
 | `GET` | `/api/prices?ticker=VOO&days=14` | recent daily closes (sparklines) |
 | `GET` | `/api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | per day: status (`ok`/`no_data`/`future`/`closed`), portfolio change, events (≤ 62 days); `period` = compounded change over the range |
+| `GET` | `/api/day/{date}?news_per_ticker=10` | one US trading date: portfolio and every holding's move (shares held that day), events, that New York day's news per ticker (top N + total) |
 | `GET` | `/api/earnings/upcoming?days=90` | next earnings of the holdings: US date, before open / after close and that moment in UTC, EPS estimate |
 | `GET` | `/api/income/monthly?year=YYYY` | net THB dividends per month (received vs upcoming), every payment with the FX rate used, per-holding totals and yield on cost |
 
@@ -245,6 +246,12 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] Trade log (buy/sell, average cost, realized/unrealized P/L split into price and FX), portfolio page, settings page
 - [x] History from the trade log: portfolio days, dividends (shares held before the ex-date) and calendar events use what was held on each date
 
-**Phase 2**: earnings and news sync, LLM news summaries with an importance score, day detail view
+**Phase 2**: earnings and news sync, day detail view
+- [x] Finnhub earnings/news verified, `news` table
+- [x] Earnings calendar (`sync_earnings`, next-earnings card, before/after the bell in Bangkok time)
+- [x] Company news (`sync_news`, de-duplicated)
+- [ ] `GET /api/day/{date}` and the full day panel (holdings' moves, events, news with links)
 
 **Phase 3**: LINE morning digest, macro events (FOMC/CPI/NFP), DCA income projection, polish
+
+**Phase 4 (last)**: LLM news summaries (Thai) with an importance score; news chips on the calendar grid
