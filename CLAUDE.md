@@ -176,7 +176,8 @@ Finish and verify one phase before starting the next.
 ## Conventions
 - `pytest.mark.parametrize` unit tests for everything in `app/domain` (tax, FX, estimates, portfolio change, projection).
 - Provider implementations get tests with recorded fixtures mocked via `respx` — no live API calls in tests.
-- `make dev`, `make test`, `make lint`, `make migrate` must work (`lint` = `ruff check` + `ruff format --check` + `mypy`).
+- `make dev`, `make test`, `make lint`, `make migrate` must work (`lint` = `ruff check` + `ruff format --check` + `mypy`, plus `eslint` + `tsc --noEmit` for the frontend).
+- Frontend: Next.js 16 — read `frontend/AGENTS.md` and the docs bundled in `frontend/node_modules/next/dist/docs/` before using a Next.js API (middleware is now `proxy.ts`, `next lint` is gone). Pure helpers in `frontend/src/lib` get `node --test` tests (`*.test.ts`, no test framework dependency). Money stays a string in the frontend too: format it with `lib/format.ts`, never `Number()`/`parseFloat()`.
 - Type hints everywhere; async I/O end to end (no blocking calls inside async code).
 - Structured logging with `structlog`. Raise specific exceptions; never swallow errors silently.
 - Keep routers thin; business logic lives in `app/domain`.

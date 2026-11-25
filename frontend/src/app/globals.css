@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/*
+ * Every color in the app is defined once here (see the token table in CLAUDE.md).
+ * :root = light ("Ink & Mint"), [data-theme="dark"] = dark ("Midnight Terminal").
+ * The inline script in layout.tsx always sets data-theme (stored choice, else the OS),
+ * so components never need to know which theme is active.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #f6f6f3;
+  --ink: #16181d;
+  --ink-2: #3a3d44;
+  --muted: #5e626b;
+  --line: #e3e3de;
+  --line-strong: #d4d4ce;
+  --hero: #16181d;
+  --hero-ink: #ffffff;
+  --hero-muted: #c9cfd6;
+  --hero-accent: #6fd3a6;
+  --up: #0b6b47;
+  --down: #b42318;
+  --pay-bg: #e2f3ea;
+  --pay-ink: #0b5a43;
+  --xd-bg: #f3ebd9;
+  --xd-ink: #6a4a0e;
+  --earn-bg: #e5ecfb;
+  --earn-ink: #1d43ae;
+  --news-bg: #ededea;
+  --news-ink: #383b42;
+  --macro-bg: #fbe8d9;
+  --macro-ink: #953b06;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1116;
+  --surface: #171b22;
+  --surface-2: #1e2530;
+  --ink: #e8eaed;
+  --ink-2: #c9cfd6;
+  --muted: #9aa3ae;
+  --line: #2a303a;
+  --line-strong: #3a424e;
+  --hero: #1e2530;
+  --hero-ink: #e8eaed;
+  --hero-muted: #c9cfd6;
+  --hero-accent: #3fd08a;
+  --up: #3fd08a;
+  --down: #ff7a6e;
+  --pay-bg: #123326;
+  --pay-ink: #6fe3a8;
+  --xd-bg: #3a2e12;
+  --xd-ink: #f2c46b;
+  --earn-bg: #17264a;
+  --earn-ink: #9db8ff;
+  --news-bg: #232a34;
+  --news-ink: #c9cfd6;
+  --macro-bg: #3d2414;
+  --macro-ink: #ffb07a;
+}
+
+/* Only these tokens exist as Tailwind colors: the default palette is switched off. */
+@theme inline {
+  --color-*: initial;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-hero: var(--hero);
+  --color-hero-ink: var(--hero-ink);
+  --color-hero-muted: var(--hero-muted);
+  --color-hero-accent: var(--hero-accent);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-pay-bg: var(--pay-bg);
+  --color-pay-ink: var(--pay-ink);
+  --color-xd-bg: var(--xd-bg);
+  --color-xd-ink: var(--xd-ink);
+  --color-earn-bg: var(--earn-bg);
+  --color-earn-ink: var(--earn-ink);
+  --color-news-bg: var(--news-bg);
+  --color-news-ink: var(--news-ink);
+  --color-macro-bg: var(--macro-bg);
+  --color-macro-ink: var(--macro-ink);
+
+  --font-sans: var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* All numbers, prices and % use the mono font with aligned digits. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

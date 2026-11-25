@@ -11,7 +11,8 @@ daily price moves, dividends in Thai baht after US withholding tax, earnings, im
 Small, invite-only, multi-user: each user has their own holdings and settings; market data is shared.
 
 > **Status: Phase 1 in progress.** The Phase 1 backend is complete: auth, holdings, quotes, daily closes,
-> calendar, dividends/income, FX and the scheduled worker. The web UI isn't built yet.
+> calendar, dividends/income, FX and the scheduled worker. The web app has login/register, the header
+> and light/dark themes; the calendar and income pages are next.
 > See [Roadmap](#roadmap).
 
 UI reference: [`docs/mockups/`](docs/mockups/)
@@ -25,7 +26,7 @@ UI reference: [`docs/mockups/`](docs/mockups/)
 | API | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (async) + asyncpg, Alembic |
 | Jobs | APScheduler worker (separate process), Redis locks and rate limits |
 | Data | PostgreSQL 16, Redis 7 (both via Docker Compose) |
-| Frontend | Next.js (App Router) + TypeScript + Tailwind *(not started yet)* |
+| Frontend | Next.js 16 (App Router) + TypeScript + Tailwind 4 |
 | Quality | ruff, mypy `--strict`, pytest + pytest-asyncio + respx |
 | Tooling | [uv](https://docs.astral.sh/uv/), GNU make |
 
@@ -52,6 +53,7 @@ Finnhub's free tier blocks candles and dividends. Each provider's limits and qui
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (Windows: `winget install astral-sh.uv`). uv installs Python 3.12 for you.
 - GNU make (Windows: `winget install ezwinports.make`)
+- [Node.js](https://nodejs.org/) 22.18 or newer (the frontend unit tests run TypeScript directly with `node --test`)
 
 ### 2. Configure
 
@@ -76,13 +78,19 @@ Fill in `.env`:
 ### 3. Run
 
 ```bash
+make install   # backend (uv sync) + frontend (npm ci) dependencies
 make migrate   # starts Postgres + Redis, applies migrations
-make dev       # API on http://localhost:8000 (+ worker)
+make dev       # web on http://localhost:3000, API on :8000, worker
 ```
 
-Interactive API docs: http://localhost:8000/docs
+Open http://localhost:3000 and register with the invite code. Interactive API docs: http://localhost:8000/docs
+
+The browser only talks to the Next.js origin: `/api/*` is forwarded to FastAPI (`API_ORIGIN`, default
+`http://localhost:8000`), so the session cookie is first-party and no CORS is needed.
 
 ### 4. Create an account and add holdings
+
+The holdings page isn't built yet, so for now holdings are imported with curl:
 
 ```bash
 # register (sets a session cookie)
@@ -144,10 +152,11 @@ Then `GET /api/quotes` returns today's prices, weights and portfolio value in US
 | Command | What it does |
 |---|---|
 | `make up` / `make down` | Start / stop Postgres and Redis |
-| `make dev` | API (with reload) and worker |
+| `make install` | `uv sync` + `npm ci` |
+| `make dev` | API (with reload), worker and Next.js dev server |
 | `make migrate` | `alembic upgrade head` |
-| `make test` | Starts infra, runs pytest |
-| `make lint` | `ruff check` + `ruff format --check` + `mypy --strict` |
+| `make test` | Starts infra, runs pytest, then the frontend unit tests (`node --test`) |
+| `make lint` | `ruff check` + `ruff format --check` + `mypy --strict`, then `eslint` + `tsc --noEmit` |
 | `make fmt` | Auto-format and auto-fix |
 
 Tests use a separate database (`tanport_test`) and Redis DB 15.
@@ -177,7 +186,13 @@ backend/
     main.py      API app          worker.py   scheduler entrypoint
   migrations/    Alembic
   tests/         mirrors app/; fixtures/ holds recorded API responses
-frontend/        Next.js app (coming)
+frontend/
+  src/
+    app/         routes: login/, (app)/ = pages that need a session (calendar, income)
+    components/  header, theme toggle, auth provider
+    lib/         typed API client, string-based number formatting (+ *.test.ts), theme
+    proxy.ts     no session cookie → /login
+    app/globals.css  every color as a CSS variable (light + dark), mapped to Tailwind
 docs/            mockups, data-source notes
 ```
 
