@@ -108,6 +108,23 @@ async def replace_dividend_events(
     return len(events)
 
 
+async def events_of_type(
+    session: AsyncSession, event_type: EventType, tickers: Iterable[str], start: date, end: date
+) -> Sequence[Event]:
+    """One type of event for the given tickers, by date then ticker."""
+    result = await session.execute(
+        select(Event)
+        .where(
+            Event.type == event_type.value,
+            Event.ticker.in_(list(tickers)),
+            Event.event_date >= start,
+            Event.event_date <= end,
+        )
+        .order_by(Event.event_date, Event.ticker)
+    )
+    return result.scalars().all()
+
+
 async def dividend_pay_events(
     session: AsyncSession, tickers: Iterable[str], start: date, end: date
 ) -> Sequence[Event]:

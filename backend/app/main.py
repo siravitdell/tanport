@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from app.api import (
     auth,
     calendar,
+    earnings,
     health,
     holdings,
     income,
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(quotes.router)
     app.include_router(prices.router)
     app.include_router(calendar.router)
+    app.include_router(earnings.router)
     app.include_router(income.router)
     app.include_router(settings.router)
     return app

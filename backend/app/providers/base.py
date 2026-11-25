@@ -88,7 +88,10 @@ class Earnings:
     hour: EarningsHour  # before market open / after market close / during market hours
     eps_estimate: Decimal | None
     quarter: int | None
-    year: int | None
+    year: int | None  # fiscal year (NVDA's FY2027 Q3 was reported in Nov 2026)
+    eps_actual: Decimal | None = None  # filled in once reported
+    revenue_estimate: Decimal | None = None
+    revenue_actual: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)

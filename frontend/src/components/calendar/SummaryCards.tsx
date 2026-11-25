@@ -1,6 +1,7 @@
 import { EmptyPortfolio } from "@/components/EmptyPortfolio";
-import type { CalendarResponse, IncomeResponse, QuotesResponse } from "@/lib/api";
-import { formatShortDate, formatShortMonth } from "@/lib/dates";
+import type { CalendarResponse, IncomeResponse, QuotesResponse, UpcomingEarnings } from "@/lib/api";
+import { formatDate, formatShortDate, formatShortMonth } from "@/lib/dates";
+import { earningsTimeText } from "@/lib/earnings";
 import {
   addDecimals,
   arrow,
@@ -16,6 +17,7 @@ interface Props {
   quotes: QuotesResponse | undefined;
   calendar: CalendarResponse | undefined;
   income: IncomeResponse | undefined;
+  earnings: UpcomingEarnings[] | undefined;
   month: number;
   isCurrentMonth: boolean;
 }
@@ -23,18 +25,14 @@ interface Props {
 const card = "rounded-2xl border border-line bg-surface p-6";
 const label = "text-sm text-muted";
 
-export function SummaryCards({ quotes, calendar, income, month, isCurrentMonth }: Props) {
+export function SummaryCards({ quotes, calendar, income, earnings, month, isCurrentMonth }: Props) {
   const monthWord = isCurrentMonth ? "เดือนนี้" : `เดือน ${formatShortMonth(month)}`;
   return (
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="สรุป">
       <PortfolioCard quotes={quotes} />
       <DividendCard income={income} month={month} monthWord={monthWord} />
       <XdCard calendar={calendar} monthWord={monthWord} />
-      <div className={card}>
-        <p className={label}>ประกาศงบรอบถัดไป</p>
-        <p className="mt-3 text-3xl font-bold text-muted">—</p>
-        <p className="mt-2 text-sm text-muted">ปฏิทินงบจะเพิ่มในเฟสถัดไป</p>
-      </div>
+      <EarningsCard earnings={earnings} />
     </section>
   );
 }
@@ -120,6 +118,37 @@ function XdCard({ calendar, monthWord }: { calendar: CalendarResponse | undefine
         {count === undefined ? "…" : <><span className="num">{count}</span> ครั้ง</>}
       </p>
       <p className="mt-2 text-sm text-muted">ต้องถือหุ้นก่อนวัน XD ถึงได้ปันผล</p>
+    </div>
+  );
+}
+
+/** The next announcement, and who else reports within three weeks of it. */
+function EarningsCard({ earnings }: { earnings: UpcomingEarnings[] | undefined }) {
+  const first = earnings?.[0];
+  const soon = first
+    ? earnings.filter((e) => Date.parse(e.date) - Date.parse(first.date) <= 21 * 86_400_000)
+    : [];
+  return (
+    <div className="rounded-2xl border border-line bg-surface p-6">
+      <p className="text-sm text-muted">ประกาศงบรอบถัดไป</p>
+      {!earnings ? (
+        <p className="mt-3 text-3xl font-bold text-muted">…</p>
+      ) : !first ? (
+        <>
+          <p className="mt-3 text-3xl font-bold text-muted">—</p>
+          <p className="mt-2 text-sm text-muted">ไม่มีกำหนดใน 90 วันข้างหน้า</p>
+        </>
+      ) : (
+        <>
+          <p className="mt-3 text-3xl font-bold text-earn-ink">{formatDate(first.date)}</p>
+          <p className="mt-2 text-sm text-muted">
+            {soon.map((e) => `${e.ticker} ${formatShortDate(e.date)}`).join(" · ")}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {first.ticker}: {earningsTimeText(first.hour, first.time_utc, first.date)}
+          </p>
+        </>
+      )}
     </div>
   );
 }

@@ -118,6 +118,7 @@ The import is **all-or-nothing**: if any row is invalid, nothing is saved, and t
 | `sync_quotes` | every 5 min (it only fetches during US market hours + 20 min) |
 | `sync_daily_close` | 05:30, again at 08:30 in case Tiingo publishes late |
 | `sync_dividends` | 06:00 |
+| `sync_earnings` | 06:00 (one Finnhub call per held ticker; 30 days back to 90 ahead) |
 | `sync_fx` | 18:30, and once at worker start-up |
 | `cleanup_sessions` | 04:00 |
 
@@ -224,6 +225,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 | `GET` | `/api/quotes` | market status, FX used, portfolio value/change, per-holding price and weight |
 | `GET` | `/api/prices?ticker=VOO&days=14` | recent daily closes (sparklines) |
 | `GET` | `/api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | per day: status (`ok`/`no_data`/`future`/`closed`), portfolio change, events (≤ 62 days); `period` = compounded change over the range |
+| `GET` | `/api/earnings/upcoming?days=90` | next earnings of the holdings: US date, before open / after close and that moment in UTC, EPS estimate |
 | `GET` | `/api/income/monthly?year=YYYY` | net THB dividends per month (received vs upcoming), every payment with the FX rate used, per-holding totals and yield on cost |
 
 ## Roadmap

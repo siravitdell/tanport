@@ -9,6 +9,7 @@ import type {
   IncomeResponse,
   QuotesResponse,
   SettingsResponse,
+  UpcomingEarnings,
 } from "@/lib/api";
 import {
   FILTERS,
@@ -53,6 +54,7 @@ function Calendar({ today }: { today: string }) {
   const calendar = useApi<CalendarResponse>(`/api/calendar?from=${range.from}&to=${range.to}`);
   const income = useApi<IncomeResponse>(`/api/income/monthly?year=${month.year}`);
   const settings = useApi<SettingsResponse>("/api/settings");
+  const earnings = useApi<UpcomingEarnings[]>("/api/earnings/upcoming");
 
   const days = useMemo(
     () => new Map<string, CalendarDay>((calendar.data?.days ?? []).map((d) => [d.date, d])),
@@ -155,6 +157,7 @@ function Calendar({ today }: { today: string }) {
         quotes={quotes.data}
         calendar={calendar.data}
         income={income.data}
+        earnings={earnings.data}
         month={month.month}
         isCurrentMonth={isCurrentMonth}
       />

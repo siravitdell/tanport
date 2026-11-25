@@ -1,6 +1,7 @@
 import type { CalendarDay, CalendarEvent, IncomePayment } from "@/lib/api";
 import { chipFor, isWeekend } from "@/lib/calendar";
 import { formatLongDate, formatShortDate } from "@/lib/dates";
+import { earningsTimeText, epsText, fiscalLabel } from "@/lib/earnings";
 import { arrow, direction, formatDecimal, formatPct, formatThb, formatThbSigned, formatUsd } from "@/lib/format";
 
 import { CHIP_CLASS, DIR_TEXT, ESTIMATE_CLASS } from "./styles";
@@ -159,8 +160,15 @@ function describe(
     }
     case "macro":
       return { tag: "Macro", title: s(e.payload.name) ?? "เหตุการณ์เศรษฐกิจ", detail: [] };
-    case "earnings":
-      return { tag: "งบ", title: `${t} ประกาศงบ`, detail: [] };
+    case "earnings": {
+      const label = fiscalLabel(e.payload.quarter, e.payload.fiscal_year);
+      const eps = epsText(s(e.payload.eps_estimate), s(e.payload.eps_actual));
+      return {
+        tag: "งบ",
+        title: `${t} ประกาศงบ${label ? ` ${label}` : ""}`,
+        detail: [earningsTimeText(s(e.payload.hour) ?? "unknown", e.event_time_utc, e.event_date), eps].filter(Boolean),
+      };
+    }
     case "split":
       return { tag: "Split", title: `${t} แตกพาร์`, detail: [] };
     default:

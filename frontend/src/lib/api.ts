@@ -151,6 +151,20 @@ export interface SettingsResponse {
   updated_at: IsoDateTime;
 }
 
+// --- earnings (backend/app/api/earnings.py) ---
+
+export type EarningsHour = "bmo" | "amc" | "dmh" | "unknown";
+
+export interface UpcomingEarnings {
+  ticker: string;
+  date: IsoDate; // US date
+  hour: EarningsHour;
+  time_utc: IsoDateTime | null; // the open (bmo) / close (amc) it is announced around
+  quarter: number | null;
+  fiscal_year: number | null;
+  eps_estimate: DecimalString | null;
+}
+
 // --- trades & portfolio (backend/app/api/trades.py, portfolio.py) ---
 
 export type Side = "buy" | "sell";
