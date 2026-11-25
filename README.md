@@ -13,6 +13,7 @@ Small, invite-only, multi-user: each user has their own holdings and settings; m
 > **Status: Phase 1 complete.** Auth, holdings, quotes, daily closes, calendar, dividends/income, FX,
 > the scheduled worker, and the web app (login, calendar, income; light/dark). Since then: a trade log
 > (buys/sales) that positions and P/L are computed from, with a portfolio page and a settings page.
+> **Phase 2 complete** (earnings, news, day panel); LLM news summaries moved to Phase 4.
 > See [Roadmap](#roadmap).
 
 UI reference: [`docs/mockups/`](docs/mockups/)
@@ -250,7 +251,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 - [x] Finnhub earnings/news verified, `news` table
 - [x] Earnings calendar (`sync_earnings`, next-earnings card, before/after the bell in Bangkok time)
 - [x] Company news (`sync_news`, de-duplicated)
-- [ ] `GET /api/day/{date}` and the full day panel (holdings' moves, events, news with links)
+- [x] `GET /api/day/{date}` and the full day panel (holdings' moves, events, news with links)
 
 **Phase 3**: LINE morning digest, macro events (FOMC/CPI/NFP), DCA income projection, polish
 

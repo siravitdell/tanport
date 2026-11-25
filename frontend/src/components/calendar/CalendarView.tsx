@@ -175,6 +175,7 @@ function Calendar({ today }: { today: string }) {
           onSelect={setPicked}
         />
         <DayPanel
+          key={selected}
           iso={selected}
           day={days.get(selected)}
           payments={payments}

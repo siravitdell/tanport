@@ -155,3 +155,12 @@ async def test_held_but_not_priced_yet(alice: AsyncClient) -> None:
     assert body["portfolio"] is None
     assert body["unpriced"] == ["SCHD"]
     assert body["status"] == "no_data"
+
+
+@pytest.mark.usefixtures("market")
+async def test_closed_and_future_days_have_nothing_missing(alice: AsyncClient) -> None:
+    await buy(alice, "VOO", "10", day="2026-12-01")
+    for day in ("2026-12-19", "2026-12-25", "2026-12-30"):  # Saturday, Christmas, future
+        body = (await alice.get(f"/api/day/{day}")).json()
+        assert body["unpriced"] == [], day
+        assert body["status"] in ("closed", "future")

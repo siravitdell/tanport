@@ -151,6 +151,45 @@ export interface SettingsResponse {
   updated_at: IsoDateTime;
 }
 
+// --- one day (backend/app/api/day.py) ---
+
+export interface DayNewsItem {
+  id: number;
+  published_at: IsoDateTime;
+  headline: string;
+  source: string;
+  url: string;
+  snippet: string | null;
+  summary: string | null; // Thai, once scored (Phase 4)
+  importance: number | null; // 1-5, once scored (Phase 4)
+}
+
+export interface DayResponse {
+  date: IsoDate;
+  status: DayStatus;
+  portfolio: {
+    value_usd: DecimalString;
+    value_thb: DecimalString;
+    change_pct: DecimalString;
+    change_usd: DecimalString;
+    change_thb: DecimalString;
+    usd_thb: DecimalString;
+    fx_rate_date: IsoDate;
+  } | null;
+  holdings: Array<{
+    ticker: string;
+    shares: DecimalString;
+    close: DecimalString;
+    change_pct: DecimalString;
+    change_usd: DecimalString;
+    change_thb: DecimalString;
+    weight_pct: DecimalString;
+  }>; // biggest move first
+  unpriced: string[];
+  events: CalendarEvent[];
+  news: Array<{ ticker: string; total: number; items: DayNewsItem[] }>;
+}
+
 // --- earnings (backend/app/api/earnings.py) ---
 
 export type EarningsHour = "bmo" | "amc" | "dmh" | "unknown";

@@ -199,7 +199,12 @@ async def get_day(
         if change and fx
         else None,
         holdings=holdings,
-        unpriced=list(change.excluded) if change else [p.ticker for p in positions],
+        # only a trading day that has happened can be missing a close
+        unpriced=[]
+        if cal.status in ("closed", "future")
+        else list(change.excluded)
+        if change
+        else [p.ticker for p in positions],
         events=[
             EventOut(
                 id=e.id,
