@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep
 from app.api.types import DecimalStr
-from app.domain.holdings_csv import normalize_ticker
+from app.domain.trades_csv import normalize_ticker
 from app.store.prices import recent_prices
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])

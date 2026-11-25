@@ -8,7 +8,18 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from app.api import auth, calendar, health, holdings, income, prices, quotes, settings
+from app.api import (
+    auth,
+    calendar,
+    health,
+    holdings,
+    income,
+    portfolio,
+    prices,
+    quotes,
+    settings,
+    trades,
+)
 from app.config import get_settings
 from app.logs import configure_logging
 from app.redis_client import make_redis
@@ -36,6 +47,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(holdings.router)
+    app.include_router(trades.router)
+    app.include_router(portfolio.router)
     app.include_router(quotes.router)
     app.include_router(prices.router)
     app.include_router(calendar.router)

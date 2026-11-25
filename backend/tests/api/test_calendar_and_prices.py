@@ -16,6 +16,7 @@ from app.store import portfolio_daily as portfolio_store
 from app.store.events import EventIn, upsert_events
 from app.store.models import EventType
 from app.store.prices import upsert_prices
+from tests.api.conftest import buy
 
 D = Decimal
 NOW = datetime(2026, 12, 16, 15, 0, tzinfo=UTC)  # Wed 10:00 ET
@@ -28,10 +29,7 @@ def pin_clock(app: FastAPI) -> None:
 
 async def _hold(client: AsyncClient, *tickers: str) -> int:
     for t in tickers:
-        resp = await client.post(
-            "/api/holdings", json={"ticker": t, "shares": "1", "avg_cost_usd": "1"}
-        )
-        assert resp.status_code == 201
+        await buy(client, t, "1")
     user_id: int = (await client.get("/api/auth/me")).json()["id"]
     return user_id
 

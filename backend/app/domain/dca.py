@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from decimal import Decimal
 
 from app.domain.errors import DomainError
-from app.domain.holdings_csv import normalize_ticker
+from app.domain.trades_csv import normalize_ticker
 
 HUNDRED = Decimal(100)
 

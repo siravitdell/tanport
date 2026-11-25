@@ -14,7 +14,7 @@ from app.api.deps import get_now
 from app.providers.base import FxRate, Quote
 from app.store import fx as fx_store
 from app.store.quote_cache import save_quote
-from tests.api.conftest import LoginAs
+from tests.api.conftest import LoginAs, buy
 
 NOW_OPEN = datetime(2026, 12, 16, 15, 0, tzinfo=UTC)  # Wed 10:00 ET = 22:00 Bangkok
 SATURDAY = datetime(2026, 12, 19, 5, 0, tzinfo=UTC)
@@ -47,10 +47,7 @@ async def market_data(session: AsyncSession, redis: Redis) -> None:
 
 async def _holdings(client: AsyncClient, rows: list[tuple[str, str]]) -> None:
     for ticker, shares in rows:
-        resp = await client.post(
-            "/api/holdings", json={"ticker": ticker, "shares": shares, "avg_cost_usd": "1"}
-        )
-        assert resp.status_code == 201
+        await buy(client, ticker, shares)
 
 
 @pytest.mark.usefixtures("market_data", "at")

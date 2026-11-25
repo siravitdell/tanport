@@ -60,7 +60,7 @@ async def market(session: AsyncSession) -> None:
 
 async def _import(client: AsyncClient, csv_text: str) -> None:
     resp = await client.post(
-        "/api/holdings/import", content=csv_text, headers={"content-type": "text/csv"}
+        "/api/trades/import", content=csv_text, headers={"content-type": "text/csv"}
     )
     assert resp.status_code == 200, resp.text
 
@@ -140,7 +140,8 @@ async def test_income_is_per_user(alice: AsyncClient, login_as: LoginAs) -> None
 
 
 async def test_other_year_and_no_fx(alice: AsyncClient, session: AsyncSession) -> None:
-    await _import(alice, "ticker,shares,avg_cost_usd\nKO,15,61\n")
+    # the trade carries its own rate: fx_rates stays empty
+    await _import(alice, "ticker,shares,avg_cost_usd,usd_thb\nKO,15,61,33\n")
     await upsert_events(session, [pay("KO", date(2025, 4, 1), "0.51")])
     body = (await alice.get("/api/income/monthly", params={"year": 2025})).json()
     assert body["year"] == 2025

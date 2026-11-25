@@ -11,8 +11,8 @@ daily price moves, dividends in Thai baht after US withholding tax, earnings, im
 Small, invite-only, multi-user: each user has their own holdings and settings; market data is shared.
 
 > **Status: Phase 1 complete.** Auth, holdings, quotes, daily closes, calendar, dividends/income, FX,
-> the scheduled worker, and the web app (login, calendar, income; light/dark). Holdings are still
-> imported with curl until the holdings page lands.
+> the scheduled worker, and the web app (login, calendar, income; light/dark). Since then: a trade log
+> (buys/sales) that positions and P/L are computed from, with a portfolio page and a settings page.
 > See [Roadmap](#roadmap).
 
 UI reference: [`docs/mockups/`](docs/mockups/)
@@ -88,32 +88,26 @@ Open http://localhost:3000 and register with the invite code. Interactive API do
 The browser only talks to the Next.js origin: `/api/*` is forwarded to FastAPI (`API_ORIGIN`, default
 `http://localhost:8000`), so the session cookie is first-party and no CORS is needed.
 
-### 4. Create an account and add holdings
+### 4. Create an account and record your trades
 
-The holdings page isn't built yet, so for now holdings are imported with curl:
+Register at http://localhost:3000 with the invite code, then open **พอร์ต** and record each buy and sale
+(ticker, date, shares, price, fee; the USD/THB rate is pre-filled from the Bank of Thailand for that date
+and can be changed to the rate your broker actually gave). Shares held, average cost and profit/loss are
+computed from these trades (average-cost method, fees included). A sale can never exceed what was held
+on its date.
 
-```bash
-# register (sets a session cookie)
-curl -c cookies.txt -H "Content-Type: application/json" \
-  -d '{"email":"me@example.com","password":"at-least-10-chars","invite_code":"<INVITE_CODE>"}' \
-  http://localhost:8000/api/auth/register
-
-# import holdings from CSV
-curl -b cookies.txt -H "Content-Type: text/csv" --data-binary @holdings.csv \
-  http://localhost:8000/api/holdings/import
-```
-
-`holdings.csv`:
+Or import many trades at once with **นำเข้าจากไฟล์ CSV**:
 
 ```csv
-ticker,shares,avg_cost_usd
-VOO,12.5,480.20
-SCHD,85.3,26.10
-KO,15,61.00
+date,side,ticker,shares,price_usd,fee_usd,usd_thb
+2026-08-04,buy,VOO,1.5,585.40,0,33.20
+2026-11-09,sell,NVDA,2,153.87,0,
 ```
 
+Only `ticker`, `shares` and `price_usd` are required: `date` defaults to today, `side` to buy (`ซื้อ`/`ขาย` work too),
+`fee_usd` to 0, and an empty `usd_thb` uses the Bank of Thailand rate of that date. An old
+`ticker,shares,avg_cost_usd` holdings file is accepted as buys at the average cost today.
 The import is **all-or-nothing**: if any row is invalid, nothing is saved, and the response lists each bad row by line number.
-Tickers that already exist are updated. Holdings that aren't in the file are left alone.
 
 ### 5. Load market data
 
@@ -219,9 +213,12 @@ All endpoints except health, register and login need a logged-in session cookie.
 | `GET` | `/api/health` | liveness |
 | `POST` | `/api/auth/register` · `/login` · `/logout` | invite-only; login is rate-limited |
 | `GET` | `/api/auth/me` | current user |
-| `GET` `POST` | `/api/holdings` | list / create |
-| `GET` `PUT` `DELETE` | `/api/holdings/{id}` | one holding |
-| `POST` | `/api/holdings/import` | CSV body (`text/csv`) |
+| `GET` `POST` | `/api/trades` | trade log (newest first) / record a buy or sale (`usd_thb` optional) |
+| `DELETE` | `/api/trades/{id}` | refused (409) if a later sale would no longer be covered |
+| `POST` | `/api/trades/import` | CSV body (`text/csv`), all-or-nothing |
+| `GET` | `/api/holdings` · `/api/holdings/{id}` | read-only: derived from the trades |
+| `GET` | `/api/portfolio` | positions at the latest price and today's rate: cost, unrealized P/L (price vs FX part), realized P/L, weights |
+| `GET` | `/api/fx?date=YYYY-MM-DD` | the USD/THB rate that applies to a date |
 | `GET` `PUT` | `/api/settings` | withholding rate, big-move threshold, DCA split |
 | `GET` | `/api/quotes` | market status, FX used, portfolio value/change, per-holding price and weight |
 | `GET` | `/api/prices?ticker=VOO&days=14` | recent daily closes (sparklines) |

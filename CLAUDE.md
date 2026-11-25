@@ -76,7 +76,7 @@ docker-compose.yml
 ## Users & auth
 - Multi-user, **invite-only**: `POST /api/auth/register` requires `INVITE_CODE` from env (empty = registration disabled).
 - Passwords: stdlib `hashlib.scrypt` (no extra crypto dependency). Sessions: random token in an HttpOnly, SameSite=Lax cookie (`tanport_session`); only its SHA-256 is stored.
-- **Per-user data:** `holdings`, `user_settings`, `portfolio_daily`. Every query on them is scoped by `user_id`; another user's id must return 404, never the row.
+- **Per-user data:** `trades`, `holdings`, `user_settings`, `portfolio_daily`. Every query on them is scoped by `user_id`; another user's id must return 404, never the row.
 - **Shared market data:** `prices`, `events`, `news`, `fx_rates` — fetched once per distinct ticker across all users. Never store user-specific amounts (e.g. net THB) in shared tables; compute them per user at read time.
 - Free-tier quotas are shared by all users (Alpha Vantage 25/day ≈ 25 distinct dividend tickers in total). If exceeded, spread syncs over several days and show data age in the UI.
 
@@ -84,7 +84,8 @@ docker-compose.yml
 - `users(id, email unique lower-case, password_hash, display_name, is_active, created_at, updated_at)`
 - `user_sessions(token_hash PRIMARY KEY, user_id, created_at, expires_at)`
 - `user_settings(user_id PRIMARY KEY, withholding_rate, big_move_threshold_pct, dca_split jsonb)` — created at registration
-- `holdings(id, user_id, ticker, shares numeric, avg_cost_usd numeric, created_at, updated_at, UNIQUE (user_id, ticker))`
+- `trades(id, user_id, ticker, side buy|sell, trade_date, shares, price_usd, fee_usd, usd_thb, created_at)` — the source of truth for positions. `usd_thb` is the rate actually paid (defaults to the BOT rate of `trade_date`). A sale may never exceed the shares held on its date (also after a delete/import → 409).
+- `holdings(id, user_id, ticker, shares numeric, avg_cost_usd numeric, created_at, updated_at, UNIQUE (user_id, ticker))` — **derived** from `trades` (average-cost method, fees included) and rebuilt after every trade change; only open positions. Never write it directly.
 - `prices(ticker, trade_date, open, high, low, close numeric, change_pct numeric, PRIMARY KEY (ticker, trade_date))` — daily closes
 - `portfolio_daily(user_id, trade_date, value_usd, value_thb, change_pct, change_thb, usd_thb, fx_rate_date, PRIMARY KEY (user_id, trade_date))` — derived after each close
 - `events(id, type, ticker nullable, event_date, event_time_utc nullable, payload jsonb, is_estimate bool, source, created_at)`
@@ -111,8 +112,11 @@ All jobs must be idempotent and safe to re-run.
 ## REST API
 All endpoints except `/api/health` and `/api/auth/{register,login}` require a logged-in session and act on the current user's data.
 - `POST /api/auth/register` (email, password, invite_code), `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
-- `GET/POST/PUT/DELETE /api/holdings`
-- `POST /api/holdings/import` (raw `text/csv` body: ticker,shares,avg_cost_usd — upsert, all-or-nothing)
+- `GET /api/holdings` (read-only, derived from trades)
+- `GET/POST /api/trades`, `DELETE /api/trades/{id}`
+- `POST /api/trades/import` (raw `text/csv` body: `date,side,ticker,shares,price_usd,fee_usd,usd_thb`; only ticker, shares, price_usd required; `avg_cost_usd` accepted for price_usd — all-or-nothing)
+- `GET /api/portfolio` → positions valued at the latest price and today's rate: cost (USD/THB), unrealized P/L split into price and FX parts, realized P/L (average cost), weights
+- `GET /api/fx?date=…` → the USD/THB rate that applies to a date (pre-fills the trade form)
 - `GET /api/quotes` → latest price, day change % and weight for every holding + portfolio value/change
 - `GET /api/prices?ticker=…&days=14` → daily closes (for sparklines)
 - `GET /api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` → per day: portfolio change % (if trading day) + events
@@ -132,7 +136,7 @@ All endpoints except `/api/health` and `/api/auth/{register,login}` require a lo
   - Up = green + ▲ + "+", down = red + ▼ + "−" (never color alone).
 - **Day detail panel:** portfolio change for the day, all holdings sorted by |change|, all events + summarised news, links to sources.
 - **Income:** bar chart of monthly net THB (actual vs estimated), yearly total, yield on cost per holding.
-- **Holdings:** table + CSV import.
+- **Portfolio (พอร์ต):** record a buy/sell (form: ticker, date, shares, price, fee, rate pre-filled from BOT), holdings table (shares, average cost, last price, value, P/L, weight), trade history with delete, CSV import. Mockup: `พอร์ต · บันทึกซื้อขาย@2x.png`.
 - **Settings.**
 
 ## Theming (light + dark)

@@ -73,6 +73,32 @@ def login_as(make_client: ClientFactory) -> LoginAs:
     return _login_as
 
 
+async def buy(
+    client: AsyncClient,
+    ticker: str,
+    shares: str,
+    price: str = "1",
+    *,
+    rate: str = "33",
+    day: str = "2026-01-02",
+) -> dict[str, object]:
+    """Record a buy (holdings are derived from trades)."""
+    resp = await client.post(
+        "/api/trades",
+        json={
+            "side": "buy",
+            "ticker": ticker,
+            "trade_date": day,
+            "shares": shares,
+            "price_usd": price,
+            "usd_thb": rate,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    body: dict[str, object] = resp.json()
+    return body
+
+
 @pytest.fixture
 async def alice(login_as: LoginAs) -> AsyncClient:
     return await login_as("alice@example.com")

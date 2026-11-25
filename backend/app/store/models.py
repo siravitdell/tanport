@@ -108,6 +108,42 @@ class Holding(TimestampMixin, Base):
     avg_cost_usd: Mapped[Decimal] = mapped_column(Money, nullable=False, server_default="0")
 
 
+class TradeSide(enum.StrEnum):
+    BUY = "buy"
+    SELL = "sell"
+
+
+class Trade(Base):
+    """One buy or sell. The source of truth for a user's positions: `holdings` is rebuilt from
+    these (average cost) after every change."""
+
+    __tablename__ = "trades"
+    __table_args__ = (
+        CheckConstraint("side IN ('buy', 'sell')", name="side_valid"),
+        CheckConstraint("shares > 0", name="shares_positive"),
+        CheckConstraint("price_usd >= 0", name="price_non_negative"),
+        CheckConstraint("fee_usd >= 0", name="fee_non_negative"),
+        CheckConstraint("usd_thb > 0", name="usd_thb_positive"),
+        CheckConstraint("ticker = upper(ticker)", name="ticker_upper"),
+        Index("ix_trades_user_ticker_date", "user_id", "ticker", "trade_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False)
+    side: Mapped[str] = mapped_column(String(4), nullable=False)
+    trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    shares: Mapped[Decimal] = mapped_column(Shares, nullable=False)
+    price_usd: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    fee_usd: Mapped[Decimal] = mapped_column(Money, nullable=False, server_default="0")
+    usd_thb: Mapped[Decimal] = mapped_column(Rate, nullable=False)  # the rate actually paid
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Price(Base):
     """Daily close per ticker. change_pct is NULL when there is no previous close."""
 

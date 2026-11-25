@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
 from alembic import command
 from sqlalchemy import inspect, text
@@ -13,6 +15,7 @@ TABLES = {
     "user_sessions",
     "user_settings",
     "holdings",
+    "trades",
     "prices",
     "portfolio_daily",
     "events",
@@ -57,6 +60,60 @@ async def test_0003_refuses_to_drop_real_positions(engine: AsyncEngine) -> None:
         try:
             with pytest.raises(RuntimeError, match="no owner"):
                 await conn.run_sync(_upgrade_with_ownerless_position)
+        finally:
+            await trans.rollback()
+
+
+def _upgrade_0004_with_positions(
+    connection: Connection, with_rates: bool
+) -> list[tuple[object, ...]]:
+    cfg = alembic_config(connection)
+    command.downgrade(cfg, "0003")
+    uid = connection.execute(
+        text("INSERT INTO users (email, password_hash) VALUES ('m@example.com', 'x') RETURNING id")
+    ).scalar_one()
+    connection.execute(
+        text(
+            "INSERT INTO holdings (user_id, ticker, shares, avg_cost_usd, created_at) VALUES "
+            "(:u, 'VOO', 2.5, 480.2, '2026-08-04 01:00+07'), "  # Bangkok date 2026-08-04
+            "(:u, 'KO', 0, 0, now())"
+        ),
+        {"u": uid},
+    )
+    if with_rates:
+        connection.execute(
+            text(
+                "INSERT INTO fx_rates (date, pair, rate, source) VALUES "
+                "('2026-08-01', 'USD/THB', 33.1, 'bot'), ('2026-08-05', 'USD/THB', 33.4, 'bot')"
+            )
+        )
+    command.upgrade(cfg, "head")
+    trades = connection.execute(
+        text("SELECT ticker, side, trade_date::text, shares, price_usd, usd_thb FROM trades")
+    ).all()
+    held = connection.execute(text("SELECT ticker FROM holdings")).all()
+    return [tuple(r) for r in trades] + [("held", *[h[0] for h in held])]
+
+
+async def test_0004_turns_positions_into_opening_buys(engine: AsyncEngine) -> None:
+    async with engine.connect() as conn:
+        trans = await conn.begin()
+        try:
+            rows = await conn.run_sync(lambda c: _upgrade_0004_with_positions(c, True))
+        finally:
+            await trans.rollback()
+    assert rows == [
+        ("VOO", "buy", "2026-08-04", Decimal("2.5"), Decimal("480.2"), Decimal("33.1")),
+        ("held", "VOO"),  # the empty KO row is gone
+    ]
+
+
+async def test_0004_needs_a_rate_for_existing_positions(engine: AsyncEngine) -> None:
+    async with engine.connect() as conn:
+        trans = await conn.begin()
+        try:
+            with pytest.raises(RuntimeError, match="sync_fx"):
+                await conn.run_sync(lambda c: _upgrade_0004_with_positions(c, False))
         finally:
             await trans.rollback()
 
