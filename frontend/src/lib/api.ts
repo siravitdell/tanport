@@ -54,6 +54,103 @@ export interface QuotesResponse {
   as_of_utc: IsoDateTime | null;
 }
 
+// --- prices (backend/app/api/prices.py) ---
+
+export interface PricesResponse {
+  ticker: string;
+  points: Array<{ trade_date: IsoDate; close: DecimalString; change_pct: DecimalString | null }>; // oldest first
+}
+
+// --- calendar (backend/app/api/calendar.py) ---
+
+export type EventType = "price_move" | "ex_dividend" | "dividend_pay" | "earnings" | "split" | "macro";
+export type DayStatus = "ok" | "no_data" | "future" | "closed";
+
+export interface CalendarEvent {
+  id: number;
+  type: EventType | (string & {});
+  ticker: string | null;
+  event_date: IsoDate;
+  event_time_utc: IsoDateTime | null;
+  is_estimate: boolean;
+  payload: Record<string, unknown>;
+}
+
+export interface CalendarDay {
+  date: IsoDate; // US trade date
+  status: DayStatus;
+  portfolio: {
+    value_thb: DecimalString;
+    change_pct: DecimalString | null;
+    change_thb: DecimalString | null;
+  } | null;
+  events: CalendarEvent[];
+}
+
+export interface CalendarResponse {
+  from: IsoDate;
+  to: IsoDate;
+  period: { change_pct: DecimalString; change_thb: DecimalString; trading_days: number } | null;
+  days: CalendarDay[];
+}
+
+// --- income (backend/app/api/income.py) ---
+
+export interface IncomePayment {
+  ticker: string;
+  ex_date: IsoDate | null;
+  pay_date: IsoDate;
+  dps: DecimalString;
+  shares: DecimalString;
+  is_estimate: boolean;
+  status: "received" | "upcoming";
+  gross_usd: DecimalString | null;
+  tax_usd: DecimalString | null;
+  net_usd: DecimalString | null;
+  net_thb: DecimalString | null;
+  usd_thb: DecimalString | null;
+  fx_rate_date: IsoDate | null;
+  fx_is_fallback: boolean | null;
+}
+
+export interface IncomeResponse {
+  year: number;
+  withholding_rate: DecimalString;
+  totals: {
+    net_thb: DecimalString;
+    gross_thb: DecimalString;
+    tax_thb: DecimalString;
+    received_thb: DecimalString;
+    upcoming_thb: DecimalString;
+    monthly_avg_thb: DecimalString;
+    yield_on_cost_pct: DecimalString | null;
+  };
+  months: Array<{
+    month: number; // 1-12
+    received_thb: DecimalString;
+    upcoming_thb: DecimalString;
+    payments: IncomePayment[];
+  }>;
+  holdings: Array<{
+    ticker: string;
+    pays_dividend: boolean;
+    pay_months: number[];
+    net_usd: DecimalString;
+    net_thb: DecimalString;
+    yield_on_cost_pct: DecimalString | null;
+  }>;
+  missing_fx: IsoDate[];
+}
+
+// --- settings (backend/app/api/settings.py) ---
+
+export interface SettingsResponse {
+  withholding_rate: DecimalString;
+  big_move_threshold_pct: DecimalString;
+  dca_split: Record<string, DecimalString>;
+  updated_at: IsoDateTime;
+}
+
 // --- errors ---
 
 export class ApiError extends Error {

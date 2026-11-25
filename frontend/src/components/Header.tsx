@@ -36,13 +36,17 @@ export function Header() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex h-[72px] max-w-[1400px] items-center gap-6 px-4 sm:px-8">
-        <Link href="/" className="flex items-center gap-3 text-xl font-bold">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-8 md:h-[72px] md:flex-nowrap md:py-0">
+        <Link href="/" className="mr-auto flex items-center gap-3 text-xl font-bold md:mr-0">
           <Logo />
           TanPort
         </Link>
 
-        <nav className="mx-auto flex items-center gap-1" aria-label="หลัก">
+        {/* phones: its own row under the logo */}
+        <nav
+          className="order-last flex w-full items-center gap-1 whitespace-nowrap md:order-none md:mx-auto md:w-auto"
+          aria-label="หลัก"
+        >
           {NAV.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             if (item.disabled) {
@@ -81,7 +85,7 @@ export function Header() {
             onClick={logout}
             disabled={loggingOut}
             title={user?.email}
-            className="rounded-xl px-3 py-2 text-sm text-muted hover:bg-surface-2 hover:text-ink disabled:opacity-60"
+            className="whitespace-nowrap rounded-xl px-3 py-2 text-sm text-muted hover:bg-surface-2 hover:text-ink disabled:opacity-60"
           >
             ออกจากระบบ
           </button>

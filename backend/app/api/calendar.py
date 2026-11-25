@@ -16,6 +16,7 @@ from app.domain.calendar import (
     DayPortfolio,
     DayStatus,
     build_calendar,
+    period_change,
 )
 from app.domain.market import NEW_YORK
 from app.store.events import events_for
@@ -49,9 +50,16 @@ class DayOut(BaseModel):
     events: list[EventOut]
 
 
+class PeriodOut(BaseModel):
+    change_pct: DecimalStr  # compounded over the range
+    change_thb: DecimalStr
+    trading_days: int
+
+
 class CalendarOut(BaseModel):
     from_: date = Field(serialization_alias="from")
     to: date
+    period: PeriodOut | None  # portfolio change over the whole range (e.g. "this month")
     days: list[DayOut]
 
 
@@ -96,9 +104,17 @@ async def get_calendar(
         ],
         big_move_threshold=settings.big_move_threshold_pct,
     )
+    period = period_change(d.portfolio for d in days if d.portfolio)
     return CalendarOut(
         from_=from_,
         to=to,
+        period=PeriodOut(
+            change_pct=period.change_pct,
+            change_thb=period.change_thb,
+            trading_days=period.trading_days,
+        )
+        if period
+        else None,
         days=[
             DayOut(
                 date=d.day,

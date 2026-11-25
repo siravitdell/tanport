@@ -1,5 +1,5 @@
-import { ComingSoon } from "@/components/ComingSoon";
+import { CalendarView } from "@/components/calendar/CalendarView";
 
 export default function CalendarPage() {
-  return <ComingSoon title="ปฏิทินพอร์ต" note="การ์ดสรุป แถบราคาวันนี้ และปฏิทินรายเดือน" />;
+  return <CalendarView />;
 }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  addDecimals,
   arrow,
   direction,
   formatDecimal,
@@ -10,6 +11,7 @@ import {
   formatThb,
   formatThbSigned,
   formatUsd,
+  shiftDecimal,
 } from "./format.ts";
 
 const M = "−";
@@ -76,6 +78,25 @@ describe("currency", () => {
   it("USD", () => {
     assert.equal(formatUsd("611.7234"), "$611.72");
     assert.equal(formatUsd("28.725"), "$28.73");
+  });
+});
+
+describe("exact decimal arithmetic", () => {
+  it("addDecimals", () => {
+    assert.equal(addDecimals(["0.1", "0.2"]), "0.3"); // 0.30000000000000004 as floats
+    assert.equal(addDecimals(["534.12", "-34.120001"]), "499.999999");
+    assert.equal(addDecimals(["534.12", "-34.119999"]), "500.000001");
+    assert.equal(addDecimals(["-1", "0.5"]), "-0.5");
+    assert.equal(addDecimals([]), "0");
+    assert.equal(addDecimals(["12"]), "12");
+  });
+
+  it("shiftDecimal", () => {
+    assert.equal(shiftDecimal("0.15", 2), "15");
+    assert.equal(shiftDecimal("0.3", 2), "30");
+    assert.equal(shiftDecimal("0.125", 2), "12.5");
+    assert.equal(shiftDecimal("-0.001", 2), "-0.1");
+    assert.equal(formatDecimal(shiftDecimal("0.15", 2), 0), "15");
   });
 });
 

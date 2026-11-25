@@ -15,6 +15,39 @@ const shortDateFmt = new Intl.DateTimeFormat(LOCALE, {
   month: "short",
 });
 
+const monthYearFmt = new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", month: "long", year: "numeric" });
+const longDateFmt = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: "UTC",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+const utcDate = (isoDate: string) => new Date(`${isoDate}T00:00:00Z`);
+
+const shortMonthFmt = new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", month: "short" });
+
+/** 12 → "ธ.ค." */
+export function formatShortMonth(month: number): string {
+  return shortMonthFmt.format(new Date(Date.UTC(2000, month - 1, 1)));
+}
+
+/** (2026, 12) → "ธันวาคม 2026" */
+export function formatMonthYear(year: number, month: number): string {
+  return monthYearFmt.format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+/** "2026-12-16" → "วันพุธที่ 16 ธันวาคม 2026" */
+export function formatLongDate(isoDate: string): string {
+  const parts = Object.fromEntries(
+    longDateFmt.formatToParts(utcDate(isoDate)).map((p) => [p.type, p.value]),
+  );
+  return `${parts.weekday}ที่ ${parts.day} ${parts.month} ${parts.year}`;
+}
+
+export const WEEKDAYS_MON_FIRST = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
+
 /** "2026-11-25T21:00:00Z" → "04:00" in Bangkok. */
 export function formatTime(isoDateTime: string): string {
   return timeFmt.format(new Date(isoDateTime));

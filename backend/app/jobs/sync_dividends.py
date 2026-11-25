@@ -106,8 +106,12 @@ async def run(
                     for t in ordered[i:]:
                         due = force or last[t] <= fresh_after
                         (result.deferred if due else result.recent).append(t)
+                    # Daily quota gone, or still throttled after one wait: stop either way
+                    # (hammering a throttle only makes it worse); the next run picks these up.
                     log.warning(
-                        "dividends.quota_exhausted",
+                        "dividends.quota_exhausted"
+                        if exc.retry_after_s is None
+                        else "dividends.throttled",
                         job=JOB,
                         deferred=result.deferred,
                         error=str(exc),

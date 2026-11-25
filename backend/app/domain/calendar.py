@@ -12,10 +12,10 @@ Status — never shows 0 % for a day without data:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
 from app.domain.market import is_trading_day
@@ -48,6 +48,37 @@ class CalendarDay:
     status: DayStatus
     portfolio: DayPortfolio | None
     events: tuple[CalendarEvent, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodChange:
+    change_pct: Decimal  # compounded: 1.5 means +1.5 %
+    change_thb: Decimal  # sum of the daily THB changes
+    trading_days: int  # days that had a change
+
+
+PCT_QUANT = Decimal("0.000001")
+
+
+def period_change(days: Iterable[DayPortfolio]) -> PeriodChange | None:
+    """Portfolio change over a range (e.g. the month on screen) from its daily changes.
+
+    Compounded, so it equals last close vs the close before the range starts. Days without a
+    change (first day of history) are skipped; None when no day has one.
+    """
+    factor = Decimal(1)
+    thb = Decimal(0)
+    count = 0
+    for day in days:
+        if day.change_pct is None:
+            continue
+        factor *= 1 + day.change_pct / 100
+        thb += day.change_thb or Decimal(0)
+        count += 1
+    if count == 0:
+        return None
+    pct = ((factor - 1) * 100).quantize(PCT_QUANT, rounding=ROUND_HALF_UP)
+    return PeriodChange(change_pct=pct, change_thb=thb, trading_days=count)
 
 
 def _keep(event: CalendarEvent, threshold: Decimal) -> bool:

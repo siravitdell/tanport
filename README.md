@@ -11,8 +11,8 @@ daily price moves, dividends in Thai baht after US withholding tax, earnings, im
 Small, invite-only, multi-user: each user has their own holdings and settings; market data is shared.
 
 > **Status: Phase 1 in progress.** The Phase 1 backend is complete: auth, holdings, quotes, daily closes,
-> calendar, dividends/income, FX and the scheduled worker. The web app has login/register, the header
-> and light/dark themes; the calendar and income pages are next.
+> calendar, dividends/income, FX and the scheduled worker. The web app has login/register, light/dark
+> themes and the calendar page; the income page is next.
 > See [Roadmap](#roadmap).
 
 UI reference: [`docs/mockups/`](docs/mockups/)
@@ -153,7 +153,7 @@ Then `GET /api/quotes` returns today's prices, weights and portfolio value in US
 |---|---|
 | `make up` / `make down` | Start / stop Postgres and Redis |
 | `make install` | `uv sync` + `npm ci` |
-| `make dev` | API (with reload), worker and Next.js dev server |
+| `make dev` | API, worker and Next.js dev server; saving a file under `backend/app/` restarts the API and the worker |
 | `make migrate` | `alembic upgrade head` |
 | `make test` | Starts infra, runs pytest, then the frontend unit tests (`node --test`) |
 | `make lint` | `ruff check` + `ruff format --check` + `mypy --strict`, then `eslint` + `tsc --noEmit` |
@@ -189,8 +189,8 @@ backend/
 frontend/
   src/
     app/         routes: login/, (app)/ = pages that need a session (calendar, income)
-    components/  header, theme toggle, auth provider
-    lib/         typed API client, string-based number formatting (+ *.test.ts), theme
+    components/  header, theme toggle, auth provider, calendar/ (cards, prices strip, month grid, day panel)
+    lib/         typed API client, string-based number formatting, month grid / event chips (+ *.test.ts), theme
     proxy.ts     no session cookie → /login
     app/globals.css  every color as a CSS variable (light + dark), mapped to Tailwind
 docs/            mockups, data-source notes
@@ -223,7 +223,7 @@ All endpoints except health, register and login need a logged-in session cookie.
 | `GET` `PUT` | `/api/settings` | withholding rate, big-move threshold, DCA split |
 | `GET` | `/api/quotes` | market status, FX used, portfolio value/change, per-holding price and weight |
 | `GET` | `/api/prices?ticker=VOO&days=14` | recent daily closes (sparklines) |
-| `GET` | `/api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | per day: status (`ok`/`no_data`/`future`/`closed`), portfolio change, events (≤ 62 days) |
+| `GET` | `/api/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | per day: status (`ok`/`no_data`/`future`/`closed`), portfolio change, events (≤ 62 days); `period` = compounded change over the range |
 | `GET` | `/api/income/monthly?year=YYYY` | net THB dividends per month (received vs upcoming), every payment with the FX rate used, per-holding totals and yield on cost |
 
 ## Roadmap

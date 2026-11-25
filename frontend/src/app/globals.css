@@ -20,6 +20,7 @@
   --hero-ink: #ffffff;
   --hero-muted: #c9cfd6;
   --hero-accent: #6fd3a6;
+  --hero-down: #ff8a80; /* a fall on the dark hero card (--down is too dark there) */
   --up: #0b6b47;
   --down: #b42318;
   --pay-bg: #e2f3ea;
@@ -48,6 +49,7 @@
   --hero-ink: #e8eaed;
   --hero-muted: #c9cfd6;
   --hero-accent: #3fd08a;
+  --hero-down: #ff7a6e;
   --up: #3fd08a;
   --down: #ff7a6e;
   --pay-bg: #123326;
@@ -77,6 +79,7 @@
   --color-hero-ink: var(--hero-ink);
   --color-hero-muted: var(--hero-muted);
   --color-hero-accent: var(--hero-accent);
+  --color-hero-down: var(--hero-down);
   --color-up: var(--up);
   --color-down: var(--down);
   --color-pay-bg: var(--pay-bg);

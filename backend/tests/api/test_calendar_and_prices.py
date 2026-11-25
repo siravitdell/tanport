@@ -125,6 +125,7 @@ async def test_calendar(alice: AsyncClient, session: AsyncSession) -> None:
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert (body["from"], body["to"]) == ("2026-12-12", "2026-12-19")
+    assert body["period"] == {"change_pct": "-1.38", "change_thb": "-2484", "trading_days": 1}
     days = {d["date"]: d for d in body["days"]}
     assert [d["status"] for d in body["days"]] == [
         "closed",
@@ -170,6 +171,7 @@ async def test_calendar_respects_user_threshold(alice: AsyncClient, session: Asy
         await alice.get("/api/calendar", params={"from": "2026-12-15", "to": "2026-12-15"})
     ).json()
     assert [e["ticker"] for e in body["days"][0]["events"]] == ["KO"]
+    assert body["period"] is None  # no portfolio history in range
 
 
 @pytest.mark.parametrize(

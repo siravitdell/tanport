@@ -51,6 +51,45 @@ export function formatSigned(value: string, dp: number): string {
   return (/[1-9]/.test(r.intPart + r.fracPart) ? "+" : "") + body(r);
 }
 
+function parts(value: string): { negative: boolean; digits: string; scale: number } {
+  const match = DECIMAL_RE.exec(value.trim());
+  if (!match) throw new Error(`not a decimal string: ${JSON.stringify(value)}`);
+  const [, sign, intDigits = "", frac = ""] = match;
+  return { negative: sign === "-", digits: intDigits + frac, scale: frac.length };
+}
+
+function fromScaled(n: bigint, scale: number): string {
+  const negative = n < BigInt(0);
+  const digits = (negative ? -n : n).toString().padStart(scale + 1, "0");
+  const intPart = digits.slice(0, digits.length - scale);
+  const frac = scale > 0 ? `.${digits.slice(-scale)}` : "";
+  return `${negative ? "-" : ""}${intPart}${frac}`;
+}
+
+/** Exact sum of decimal strings: addDecimals(["0.1", "0.2"]) → "0.3". */
+export function addDecimals(values: string[]): string {
+  const ps = values.map(parts);
+  const scale = Math.max(0, ...ps.map((p) => p.scale));
+  let total = BigInt(0);
+  for (const p of ps) {
+    const n = BigInt(p.digits + "0".repeat(scale - p.scale));
+    total += p.negative ? -n : n;
+  }
+  return fromScaled(total, scale);
+}
+
+/** Exact multiply by 10^places: shiftDecimal("0.15", 2) → "15.00" (a rate as a percent). */
+export function shiftDecimal(value: string, places: number): string {
+  const p = parts(value);
+  let n = BigInt(p.digits);
+  let scale = p.scale - places;
+  if (scale < 0) {
+    n *= BigInt(10) ** BigInt(-scale);
+    scale = 0;
+  }
+  return fromScaled(p.negative ? -n : n, scale);
+}
+
 /** "0.4012" → "+0.40%". Input is already in percent (1.5 means +1.5 %). */
 export function formatPct(value: string, dp = 2): string {
   return `${formatSigned(value, dp)}%`;

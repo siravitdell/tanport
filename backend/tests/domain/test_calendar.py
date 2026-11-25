@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from app.domain.calendar import CalendarEvent, DayPortfolio, build_calendar
+from app.domain.calendar import CalendarEvent, DayPortfolio, build_calendar, period_change
 
 D = Decimal
 TODAY = date(2026, 12, 16)  # Wednesday
@@ -65,3 +65,35 @@ def test_events_grouped_by_day_and_big_moves_filtered_per_user() -> None:
 def test_invalid_ranges(start: date, end: date) -> None:
     with pytest.raises(ValueError, match=r"range|end"):
         build_calendar(start, end, today=TODAY, portfolio={}, events=[], big_move_threshold=D(3))
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected_pct", "expected_thb", "days"),
+    [
+        ([], None, None, 0),
+        ([(None, None)], None, None, 0),  # first day of history: no change yet
+        ([("1.5", "100")], "1.5", "100", 1),
+        # compounded, not summed: 1.10 * 0.90 = 0.99 -> -1 %
+        ([("10", "1000"), ("-10", "-1100")], "-1", "-100", 2),
+        ([("0.59", "1"), ("-0.39", "2"), (None, None), ("0.03", "3")], "0.227758", "6", 3),
+        # tiny daily moves keep their precision before the final quantize
+        ([("0.0000004", "0"), ("0.0000004", "0")], "0.000001", "0", 2),
+    ],
+)
+def test_period_change(
+    changes: list[tuple[str | None, str | None]],
+    expected_pct: str | None,
+    expected_thb: str | None,
+    days: int,
+) -> None:
+    def dec(value: str | None) -> Decimal | None:
+        return D(value) if value is not None else None
+
+    result = period_change([DayPortfolio(D(100), dec(p), dec(t)) for p, t in changes])
+    if expected_pct is None:
+        assert result is None
+        return
+    assert result is not None
+    assert result.change_pct == dec(expected_pct)
+    assert result.change_thb == dec(expected_thb)
+    assert result.trading_days == days
