@@ -14,8 +14,10 @@ from app.providers.base import ProviderAccessDeniedError, ProviderResponseError
 from app.providers.finnhub import (
     BASE_URL,
     FinnhubEarningsProvider,
+    FinnhubNewsProvider,
     FinnhubQuoteProvider,
     parse_earnings,
+    parse_news,
     parse_quote,
 )
 from app.providers.http import ProviderHttp
@@ -128,3 +130,55 @@ async def test_earnings_request_is_per_symbol() -> None:
     assert [r.report_date for r in rows] == [date(2027, 1, 26)]
     params = route.calls.last.request.url.params
     assert (params["symbol"], params["from"], params["to"]) == ("MSFT", "2026-11-25", "2027-02-23")
+
+
+# --- company news ---
+
+
+def test_parse_recorded_news() -> None:
+    items = parse_news("NVDA", load("company_news_NVDA.json"))
+    assert len(items) == 7
+    assert items == sorted(items, key=lambda n: n.published_at)  # oldest first
+    first = items[0]
+    assert first.ticker == "NVDA"
+    assert first.url.startswith("https://finnhub.io/api/news?id=")
+    assert first.published_at.tzinfo is not None
+    assert first.provider_id is not None
+    assert any(n.summary is None for n in items)  # an empty summary stays None
+    assert all("\u00e2\u0080" not in n.headline + (n.summary or "") for n in items)  # repaired
+
+
+def test_parse_news_skips_unusable_rows() -> None:
+    good = {
+        "datetime": 1795607739,
+        "headline": "Nvidia up",
+        "url": "https://x/1",
+        "source": "Yahoo",
+        "id": 7,
+    }
+    body = [
+        good,
+        {**good, "headline": "  "},
+        {**good, "url": "javascript:alert(1)"},
+        {**good, "datetime": 0},
+        {**good, "datetime": "yesterday"},
+        "junk",
+    ]
+    [item] = parse_news("NVDA", body)
+    assert (item.headline, item.provider_id, item.summary) == ("Nvidia up", "7", None)
+    with pytest.raises(ProviderResponseError):
+        parse_news("NVDA", {"error": "x"})
+
+
+@respx.mock
+async def test_news_request() -> None:
+    route = respx.get(f"{BASE_URL}/company-news").mock(
+        return_value=httpx.Response(200, json=load("company_news_VOO.json"))
+    )
+    http = ProviderHttp("finnhub", httpx.AsyncClient(), sleep=_noop_sleep)
+    items = await FinnhubNewsProvider(http, TOKEN).get_news(
+        "VOO", date(2026, 11, 24), date(2026, 11, 25)
+    )
+    assert len(items) == 5
+    params = route.calls.last.request.url.params
+    assert (params["symbol"], params["from"], params["to"]) == ("VOO", "2026-11-24", "2026-11-25")

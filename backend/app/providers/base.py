@@ -102,6 +102,7 @@ class NewsItem:
     url: str
     source: str
     summary: str | None
+    provider_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

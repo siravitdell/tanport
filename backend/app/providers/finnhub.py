@@ -1,4 +1,4 @@
-"""Finnhub (free tier): latest quotes, earnings calendar.
+"""Finnhub (free tier): latest quotes, earnings calendar, company news.
 
 Candles and dividends are premium-only on Finnhub (see docs/data-sources.md). The earnings
 calendar is asked per symbol: the whole-market list is capped at 1,500 rows and comes back
@@ -14,7 +14,14 @@ from typing import Any
 
 from app.domain.errors import InvalidAmountError
 from app.domain.money import pct_change, to_decimal
-from app.providers.base import Earnings, EarningsHour, ProviderResponseError, Quote
+from app.domain.news import repair_mojibake
+from app.providers.base import (
+    Earnings,
+    EarningsHour,
+    NewsItem,
+    ProviderResponseError,
+    Quote,
+)
 from app.providers.http import ProviderHttp
 
 HOURS: dict[str, EarningsHour] = {"bmo": "bmo", "amc": "amc", "dmh": "dmh"}
@@ -101,6 +108,59 @@ class FinnhubEarningsProvider:
             },
         )
         return parse_earnings(ticker, body)
+
+
+def parse_news(ticker: str, body: Any) -> list[NewsItem]:
+    """Company news → items oldest first. Texts are repaired (double-encoded at the source);
+    rows without a headline, URL or time are skipped."""
+    if not isinstance(body, list):
+        raise ProviderResponseError("finnhub", f"news for {ticker}: not a list")
+    out: list[NewsItem] = []
+    for row in body:
+        if not isinstance(row, dict):
+            continue
+        headline = repair_mojibake(str(row.get("headline") or "")).strip()
+        url = str(row.get("url") or "").strip()
+        stamp = row.get("datetime")
+        if (
+            not headline
+            or not url.startswith("https://")
+            or not isinstance(stamp, int)
+            or stamp <= 0
+        ):
+            continue
+        summary = repair_mojibake(str(row.get("summary") or "")).strip() or None
+        raw_id = row.get("id")
+        out.append(
+            NewsItem(
+                ticker=ticker,
+                published_at=datetime.fromtimestamp(stamp, UTC),
+                headline=headline,
+                url=url,
+                source=str(row.get("source") or "unknown")[:64],
+                summary=summary,
+                provider_id=str(raw_id) if raw_id is not None else None,
+            )
+        )
+    return sorted(out, key=lambda n: (n.published_at, n.url))
+
+
+class FinnhubNewsProvider:
+    def __init__(self, http: ProviderHttp, token: str) -> None:
+        self._http = http
+        self._token = token
+
+    async def get_news(self, ticker: str, start: date, end: date) -> Sequence[NewsItem]:
+        body = await self._http.get_json(
+            f"{BASE_URL}/company-news",
+            params={
+                "symbol": ticker,
+                "from": start.isoformat(),
+                "to": end.isoformat(),
+                "token": self._token,
+            },
+        )
+        return parse_news(ticker, body)
 
 
 class FinnhubQuoteProvider:

@@ -50,6 +50,8 @@ Trimmed real responses live in `backend/tests/fixtures/<provider>/`.
   - `summary` can be empty (~2–6 %), `image` too.
   - **Mojibake from the source**: some SeekingAlpha texts arrive double-encoded (`Buffettâ\u0080\u0099s` for `Buffett's`) → repair at the provider boundary.
   - The same article can be filed under several held symbols, so news is unique per **(ticker, url)**.
+  - **Each call returns at most ~250 items** (NVDA 248, MSFT 246, AMZN 241 for a 3-day window) — the newest ones. Polling every 30 min covers it.
+  - Measured 2026-11-25, after de-duplication: **~500 items/day** across 9 holdings (NVDA ~210, MSFT/AMZN/GOOGL ~75–80 each, KO/V/ETFs 4–16). Headline ≈ 75 chars, summary ≈ 175 chars. Exact/near-duplicate headlines are rare (12 of 1,173): outlets mostly write their own headlines.
 
 ### Tiingo
 - `GET https://api.tiingo.com/tiingo/daily/{ticker}/prices?startDate=YYYY-MM-DD&token=…`

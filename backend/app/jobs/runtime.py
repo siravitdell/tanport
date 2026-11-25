@@ -14,7 +14,11 @@ from app.config import Settings, get_settings
 from app.providers.alphavantage import AlphaVantageDividendProvider
 from app.providers.base import ProviderError
 from app.providers.bot_fx import BotFxProvider
-from app.providers.finnhub import FinnhubEarningsProvider, FinnhubQuoteProvider
+from app.providers.finnhub import (
+    FinnhubEarningsProvider,
+    FinnhubNewsProvider,
+    FinnhubQuoteProvider,
+)
 from app.providers.http import ProviderHttp
 from app.providers.tiingo import TiingoPriceProvider
 from app.ratelimit import provider_limiter
@@ -56,6 +60,13 @@ class Runtime:
         # same 60/min budget as the quotes (one shared limiter)
         http = ProviderHttp("finnhub", self.http, provider_limiter(self.redis, "finnhub"))
         return FinnhubEarningsProvider(http, token)
+
+    def finnhub_news(self) -> FinnhubNewsProvider:
+        token = self.config.finnhub_api_key.get_secret_value()
+        if not token:
+            raise ProviderNotConfiguredError("finnhub", "FINNHUB_API_KEY is not set")
+        http = ProviderHttp("finnhub", self.http, provider_limiter(self.redis, "finnhub"))
+        return FinnhubNewsProvider(http, token)
 
     def tiingo_prices(self) -> TiingoPriceProvider:
         token = self.config.tiingo_api_key.get_secret_value()

@@ -119,6 +119,7 @@ The import is **all-or-nothing**: if any row is invalid, nothing is saved, and t
 | `sync_daily_close` | 05:30, again at 08:30 in case Tiingo publishes late |
 | `sync_dividends` | 06:00 |
 | `sync_earnings` | 06:00 (one Finnhub call per held ticker; 30 days back to 90 ahead) |
+| `sync_news` | every 30 min at :07 and :37 (company news, de-duplicated; kept 180 days) |
 | `sync_fx` | 18:30, and once at worker start-up |
 | `cleanup_sessions` | 04:00 |
 

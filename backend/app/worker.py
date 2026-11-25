@@ -10,6 +10,7 @@ skipped rather than doubled, and every job is safe to re-run.
 | sync_daily_close_catchup | 08:30                | Tiingo can publish late in US winter        |
 | sync_dividends           | 06:00                | Alpha Vantage, quota-aware                  |
 | sync_earnings            | 06:00                | Finnhub, one call per ticker                |
+| sync_news                | :07 and :37 hourly   | every 30 min, off the quotes' :00/:30 slots |
 | sync_fx                  | 18:30 + at startup   | BOT publishes the day's rate in the evening |
 | cleanup_sessions         | 04:00                | drop expired login sessions                 |
 """
@@ -30,7 +31,14 @@ from apscheduler.triggers.date import DateTrigger
 from redis.asyncio import Redis
 
 from app.config import get_settings
-from app.jobs import sync_daily_close, sync_dividends, sync_earnings, sync_fx, sync_quotes
+from app.jobs import (
+    sync_daily_close,
+    sync_dividends,
+    sync_earnings,
+    sync_fx,
+    sync_news,
+    sync_quotes,
+)
 from app.jobs.runtime import Runtime, open_runtime
 from app.logs import configure_logging
 from app.store.users import delete_expired_sessions
@@ -67,6 +75,10 @@ async def _earnings(rt: Runtime) -> Any:
     return await sync_earnings.run(rt.session_factory, rt.redis, rt.finnhub_earnings())
 
 
+async def _news(rt: Runtime) -> Any:
+    return await sync_news.run(rt.session_factory, rt.redis, rt.finnhub_news())
+
+
 async def _fx_scheduled(rt: Runtime) -> Any:
     # The schedule *is* the once-a-day rule, so bypass the 24 h marker: a marker set a few
     # seconds later yesterday must not make today's run skip.
@@ -94,6 +106,7 @@ def job_specs(tz: str, now: datetime | None = None) -> list[JobSpec]:
         JobSpec("sync_daily_close_catchup", cron(hour=8, minute=30), _daily_close, 3600),
         JobSpec("sync_dividends", cron(hour=6, minute=0), _dividends, 3600),
         JobSpec("sync_earnings", cron(hour=6, minute=0), _earnings, 3600),
+        JobSpec("sync_news", cron(minute="7,37"), _news, misfire_grace_s=600),
         JobSpec("sync_fx", cron(hour=18, minute=30), _fx_scheduled, 3600),
         JobSpec(
             "sync_fx_startup", DateTrigger(run_date=now or datetime.now(UTC)), _fx_startup, 3600
